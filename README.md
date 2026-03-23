@@ -29,8 +29,8 @@
 ### 2. 환경 설정 (.env)
 프로젝트 루트에 `.env ` 파일을 생성하고 아래 내용을 입력합니다.
 ```env
-NAVER_CLIENT_ID=여러분의_ID
-NAVER_CLIENT_SECRET=여러분의_Secret
+NAVER_CLIENT_ID=your_ID
+NAVER_CLIENT_SECRET=your_Secret
 DATABASE_URL=sqlite:///./data/coffee_archive.db
 ```
 
