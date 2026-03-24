@@ -77,8 +77,19 @@ window.initMap = function() {
     window.mapRef = map;
     L.control.zoom({ position: 'topright' }).addTo(map);
 
+    // Dark basemap: Voyager reads well (vs. dark_all). Pane z-index below default tilePane so subway overlay stays crisp.
+    map.createPane('darkBasemap');
+    const darkBasePane = map.getPane('darkBasemap');
+    darkBasePane.style.zIndex = '195';
+    darkBasePane.style.filter = 'brightness(0.9) sepia(0.14) saturate(0.9)';
+
     lightTile = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 });
-    darkTile = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', { attribution: '&copy; Stadia &copy; OSM', maxZoom: 20 });
+    darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20,
+        pane: 'darkBasemap',
+    });
     subwayOverlay = L.tileLayer('https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png', { attribution: '&copy; OpenRailwayMap', opacity: 0.85, maxZoom: 19, subdomains: 'abc' });
 
     if (document.documentElement.classList.contains('dark')) darkTile.addTo(map);
