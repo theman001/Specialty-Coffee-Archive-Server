@@ -516,19 +516,28 @@ window.loadDeviceList = async function() {
 };
 
 window.deleteDevice = async function(deviceId) {
-    console.log("Delete triggered for:", deviceId);
-    if (!confirm('이 기기의 등록을 해제하시겠습니까?')) return;
+    const isMe = deviceId === localStorage.getItem('device_id');
+    const msg = isMe 
+        ? '현재 접속 중인 기기를 삭제하시겠습니까? 삭제 즉시 관리자 권한을 잃게 됩니다.' 
+        : '이 기기 기록을 화이트리스트에서 삭제하시겠습니까?';
+    
+    if (!confirm(msg)) return;
+    
     try {
         const res = await fetch(`/api/auth/device/${deviceId}`, { method: 'DELETE' });
-        console.log("Response status:", res.status);
         if (res.ok) {
-            await loadDeviceList();
+            if (isMe) {
+                alert('현재 기기가 삭제되었습니다. 접속 권한 확인을 위해 페이지를 새로고침합니다.');
+                location.reload();
+            } else {
+                await loadDeviceList();
+            }
         } else {
             const err = await res.json();
             alert('삭제 실패: ' + (err.detail || '알 수 없는 오류'));
         }
     } catch (e) {
-        console.error("Delete call failed:", e);
+        console.error("Delete failed:", e);
         alert('삭제 요청 중 오류가 발생했습니다.');
     }
 };
