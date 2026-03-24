@@ -268,10 +268,13 @@ async def register_device(request: Request, session: Session = Depends(get_sessi
     
     # Check if already exists
     exists = session.exec(select(AllowedDevice).where(AllowedDevice.device_id == dev_id)).first()
-    if not exists:
+    if exists:
+        exists.description = desc
+        session.add(exists)
+    else:
         new_dev = AllowedDevice(device_id=dev_id, description=desc)
         session.add(new_dev)
-        session.commit()
+    session.commit()
     
     response = JSONResponse(content={"status": "success"})
     # Also set the cookie for the user immediately if they are on Home network

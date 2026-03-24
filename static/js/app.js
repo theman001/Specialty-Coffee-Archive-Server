@@ -516,10 +516,21 @@ window.loadDeviceList = async function() {
 };
 
 window.deleteDevice = async function(deviceId) {
+    console.log("Delete triggered for:", deviceId);
     if (!confirm('이 기기의 등록을 해제하시겠습니까?')) return;
-    const res = await fetch(`/api/auth/device/${deviceId}`, { method: 'DELETE' });
-    if (res.ok) loadDeviceList();
-    else alert('삭제 실패');
+    try {
+        const res = await fetch(`/api/auth/device/${deviceId}`, { method: 'DELETE' });
+        console.log("Response status:", res.status);
+        if (res.ok) {
+            await loadDeviceList();
+        } else {
+            const err = await res.json();
+            alert('삭제 실패: ' + (err.detail || '알 수 없는 오류'));
+        }
+    } catch (e) {
+        console.error("Delete call failed:", e);
+        alert('삭제 요청 중 오류가 발생했습니다.');
+    }
 };
 
 // --- Auth Handling ---
