@@ -90,16 +90,19 @@
                 <svg id="themeIconMoon" class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
                 <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">테마 변경</span>
             </button>
-            <!-- Login Button (Visible for Guests) -->
-            <button id="nav-login" class="{% if user_role == 'admin' %}hidden{% endif %} relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors" title="Login">
+            
+            <!-- Login/Settings Button -->
+            {% if user_role != 'admin' %}
+            <button onclick="attemptWhitelistLogin()" id="nav-login" class="relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors" title="Login">
                 <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
                 <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">관리자 로그인</span>
             </button>
-            <!-- Settings (Visible for Admin) -->
-            <button id="nav-settings" class="{% if user_role != 'admin' %}hidden{% endif %} relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors" title="Admin Settings">
+            {% else %}
+            <button id="nav-settings" class="relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors" title="Admin Settings">
                 <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">환경 설정</span>
             </button>
+            {% endif %}
         </div>
     </nav>
 
@@ -114,9 +117,11 @@
                         <h1 class="text-3xl font-serif font-bold text-coffee-btn dark:text-coffee-accent tracking-tight">Map & Wish</h1>
                         <p class="text-sm text-slate-500 dark:text-coffee-muted mt-2">나만의 카페 즐겨찾기 지도</p>
                     </div>
+                    {% if user_role == 'admin' %}
                     <button id="guideWriteBtn" class="bg-coffee-btn text-white rounded-full p-3 shadow-md hover:bg-coffee-btnHover transition-transform hover:scale-105 tooltip" data-tip="새 글 작성하기">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                     </button>
+                    {% endif %}
                 </header>
                 <div class="p-4 border-b border-slate-200 dark:border-coffee-border">
                     <div class="relative">
@@ -346,6 +351,6 @@
 
     <!-- Scripts -->
     <script>const USER_ROLE = "{{ user_role }}";</script>
-    <script src="/static/js/app.js?v=31"></script>
+    <script src="/static/js/app.js?v=32"></script>
 </body>
 </html>

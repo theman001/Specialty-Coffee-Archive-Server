@@ -551,11 +551,29 @@ function requireAdminAccess(callback) {
     } else { callback(); }
 }
 
+async function attemptWhitelistLogin() {
+    try {
+        const res = await fetch('/api/auth/login/whitelist', { method: 'POST' });
+        if (res.ok) {
+            alert("자동 로그인 성공!");
+            location.reload();
+        } else {
+            // Whitelist failed, show manual login modal
+            const modal = document.getElementById('authModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            }
+        }
+    } catch (e) {
+        console.error("Whitelist login error:", e);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     initMap();
     if (localStorage.getItem('device_id')) {
-        // Ensure device_id is in cookies for whitelist check
         document.cookie = `device_id=${localStorage.getItem('device_id')}; max-age=315360000; path=/`;
     }
     loadStores();
@@ -571,7 +589,13 @@ function setupEventListeners() {
         document.getElementById('storeListContainer').classList.remove('hidden');
         currentStore = null;
     };
-    document.getElementById('nav-login').onclick = () => requireAdminAccess(() => { location.reload(); });
+    
+    // Bind detail wishlist button
+    const dwb = document.getElementById('detailWishlistBtn');
+    if (dwb) dwb.onclick = () => toggleWishlist(currentStore.id);
+
+    const nl = document.getElementById('nav-login');
+    if (nl) nl.onclick = () => attemptWhitelistLogin();
     
     document.getElementById('btnCancelAuth').onclick = () => {
         const m = document.getElementById('authModal');
@@ -666,13 +690,69 @@ async function doSearch(query) {
     const results = await res.json();
     const container = document.getElementById('searchResults');
     container.classList.remove('hidden');
-    container.innerHTML = results.length ? results.map(item => `
-        <div class="p-4 hover:bg-slate-50 dark:hover:bg-coffee-panel border-b border-slate-100 dark:border-coffee-border cursor-pointer" 
-             onclick='selectSearchResult(${JSON.stringify(item).replace(/'/g, "&#39;")})'>
-            <h5 class="font-bold text-slate-800 dark:text-coffee-accent text-sm">${item.title}</h5>
-            <p class="text-xs text-slate-400 dark:text-coffee-muted truncate">${item.roadAddress || item.category}</p>
-        </div>
-    `).join('') : '<div class="p-4 text-sm text-coffee-muted">결과가 없습니다.</div>';
+    container.innerHTML = results.length ? results.map(item => {
+        const existing = storesCache.find(s => s.address === item.roadAddress || s.name === item.title);
+        const isWish = existing ? existing.is_wishlist : false;
+        const jsonStr = JSON.stringify(item).replace(/'/g, "&#39;");
+        return `
+            <div class="p-4 hover:bg-slate-50 dark:hover:bg-coffee-panel border-b border-slate-100 dark:border-coffee-border flex justify-between items-center group">
+                <div class="cursor-pointer flex-1 min-w-0" onclick='selectSearchResult(${jsonStr})'>
+                    <h5 class="font-bold text-slate-800 dark:text-coffee-accent text-sm">${item.title}</h5>
+                    <p class="text-xs text-slate-400 dark:text-coffee-muted truncate">${item.roadAddress || item.category}</p>
+                </div>
+                <button onclick="toggleWishlistFromSearch(${jsonStr}, event)" class="p-2 text-slate-300 hover:text-pink-500 transition-colors ${isWish ? 'text-pink-500' : ''}">
+                    <svg class="w-5 h-5" fill="${isWish ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                </button>
+            </div>
+        `;
+    }).join('') : '<div class="p-4 text-sm text-coffee-muted">결과가 없습니다.</div>';
+}
+
+async function toggleWishlistFromSearch(item, event) {
+    if (event) event.stopPropagation();
+    if (typeof USER_ROLE !== 'undefined' && USER_ROLE !== 'admin') {
+        alert("관리자 로그인이 필요합니다.");
+        return;
+    }
+    const existing = storesCache.find(s => s.address === item.roadAddress || s.name === item.title);
+    if (existing) {
+        await toggleWishlist(existing.id);
+    } else {
+        // Create new store as wishlist
+        const res = await fetch('/api/stores', {
+            method: 'POST',
+            body: JSON.stringify({ ...item, is_wishlist: true })
+        });
+        if (res.ok) {
+            await loadStores();
+            doSearch(document.getElementById('searchInput').value); // Refresh search UI to show filled heart
+        }
+    }
+}
+
+async function toggleWishlist(sid) {
+    if (sid === 'temp') return;
+    const res = await fetch(`/api/stores/${sid}/toggle-wishlist`, { method: 'POST' });
+    if (res.ok) {
+        await loadStores();
+        // Update current view if in detail mode
+        if (currentStore && currentStore.id === sid) {
+            currentStore.is_wishlist = !currentStore.is_wishlist;
+            updateDetailWishlistUI();
+        }
+        // Update search list icon if open
+        const query = document.getElementById('searchInput').value;
+        if (query) doSearch(query);
+    }
+}
+
+function updateDetailWishlistUI() {
+    const icon = document.getElementById('detailWishlistIcon');
+    if (icon) icon.setAttribute('fill', currentStore.is_wishlist ? 'currentColor' : 'none');
+    if (icon && currentStore.is_wishlist) icon.parentElement.classList.add('text-pink-500');
+    else if (icon) icon.parentElement.classList.remove('text-pink-500');
 }
 
 function selectSearchResult(item) {

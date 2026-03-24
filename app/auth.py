@@ -258,6 +258,16 @@ async def login_via_otp(request: Request, session: Session = Depends(get_session
     else:
         raise HTTPException(status_code=400, detail="Invalid code.")
 
+@router.post("/login/whitelist")
+async def login_whitelist(request: Request, response: Response, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if user.get("role") == "admin":
+        # Create persistent JWT token so they stay logged in even if IP changes
+        token = create_admin_token()
+        response.set_cookie(key=COOKIE_NAME, value=token, max_age=315360000, httponly=True)
+        return {"status": "success"}
+    raise HTTPException(status_code=403, detail="Whitelist not met")
+
 @router.post("/device/register")
 async def register_device(request: Request, session: Session = Depends(get_session), admin: dict = Depends(require_admin)):
     data = await request.json()

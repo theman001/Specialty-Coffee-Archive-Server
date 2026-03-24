@@ -62,8 +62,8 @@ def get_stores(session: Session = Depends(get_session)):
             type_status = "record_wish"  # 기록+위시 (핑크)
             default_color = "#e84393"
         elif has_review and not s.is_wishlist:
-            type_status = "record_only"  # 기록 전용 (초록)
-            default_color = "#27ae60"
+            type_status = "record_only"  # 기록 전용 (노란색)
+            default_color = "#f1c40f"
         elif not has_review and s.is_wishlist:
             type_status = "wish_only"    # 위시 전용 (회색)
             default_color = "#7f8fa6"
