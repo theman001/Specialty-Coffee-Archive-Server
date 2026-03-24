@@ -734,14 +734,29 @@ async function toggleWishlistFromSearch(item, event) {
     if (existing) {
         await toggleWishlist(existing.id);
     } else {
-        // Create new store as wishlist
-        const res = await fetch('/api/stores', {
-            method: 'POST',
-            body: JSON.stringify({ ...item, is_wishlist: true })
-        });
-        if (res.ok) {
-            await loadStores();
-            doSearch(document.getElementById('searchInput').value); // Refresh search UI to show filled heart
+        // Create new store as wishlist - Map fields correctly to database model (name, address)
+        try {
+            const res = await fetch('/api/stores', {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    name: item.title, 
+                    address: item.roadAddress || '주소없음', 
+                    lat: item.lat, 
+                    lng: item.lng, 
+                    is_wishlist: true 
+                })
+            });
+            if (res.ok) {
+                await loadStores();
+                const query = document.getElementById('searchInput').value;
+                if (query) doSearch(query); // Refresh search UI to show filled heart
+                alert("위시리스트에 추가되었습니다.");
+            } else {
+                const err = await res.json();
+                alert("저장 실패: " + (err.detail || "알 수 없는 오류"));
+            }
+        } catch (e) {
+            console.error("Save failed:", e);
         }
     }
 }
