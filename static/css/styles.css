@@ -14,19 +14,27 @@ body {
   transition: background-color var(--transition-speed), color var(--transition-speed);
 }
 
-/* Base custom scrollbar */
+/* Base custom scrollbar - Coffee Atmosphere */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
+  height: 5px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(163, 124, 100, 0.3);
-  border-radius: 10px;
+  background-color: #8c5c4a;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(163, 124, 100, 0.6);
+  background-color: #a6725e;
+}
+/* For Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #8c5c4a transparent;
 }
 
 /* Premium card hover fx */

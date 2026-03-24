@@ -546,14 +546,22 @@ window.deleteDevice = async function(deviceId) {
 };
 
 window.handleLogout = async function() {
+    console.log("Logout triggered");
     if (!confirm("관리자 세션을 종료하고 읽기 모드로 전환하시겠습니까?")) return;
     try {
         const res = await fetch('/api/auth/logout', { method: 'POST' });
+        // Client-side fallback cookie clearing
+        document.cookie = "admin_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        
         if (res.ok) {
             alert("게스트 모드로 전환되었습니다.");
-            location.reload();
         }
-    } catch (e) { console.error("Logout failed:", e); }
+        location.reload();
+    } catch (e) { 
+        console.error("Logout failed:", e); 
+        document.cookie = "admin_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        location.reload();
+    }
 };
 
 // --- Auth Handling ---
@@ -704,6 +712,7 @@ async function doSearch(query) {
     const results = await res.json();
     const container = document.getElementById('searchResults');
     container.classList.remove('hidden');
+    container.classList.add('custom-scrollbar');
     container.innerHTML = results.length ? results.map(item => {
         const existing = storesCache.find(s => s.address === item.roadAddress || s.name === item.title);
         const isWish = existing ? existing.is_wishlist : false;

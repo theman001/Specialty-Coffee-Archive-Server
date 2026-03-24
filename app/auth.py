@@ -260,7 +260,8 @@ async def login_via_otp(request: Request, session: Session = Depends(get_session
 
 @router.post("/logout")
 async def logout(response: Response):
-    response.delete_cookie(COOKIE_NAME)
+    # Ensure cookie is cleared for the exact path it was set to
+    response.delete_cookie(key=COOKIE_NAME, path="/", httponly=True)
     return {"status": "success"}
 
 @router.post("/login/whitelist")
