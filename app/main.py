@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
+from sqlalchemy import func
 import os
 from dotenv import load_dotenv
 
@@ -52,10 +53,14 @@ def search_local(query: str):
 @app.get("/api/stores")
 def get_stores(session: Session = Depends(get_session)):
     stores = session.exec(select(Store)).all()
+    review_count_rows = session.exec(
+        select(Review.store_id, func.count(Review.id)).group_by(Review.store_id)
+    ).all()
+    review_count_map = {store_id: count for store_id, count in review_count_rows}
     result = []
     for s in stores:
-        reviews = session.exec(select(Review).where(Review.store_id == s.id)).all()
-        has_review = len(reviews) > 0
+        review_count = review_count_map.get(s.id, 0)
+        has_review = review_count > 0
         
         # 3-Type Logic
         if has_review and s.is_wishlist:
@@ -82,9 +87,29 @@ def get_stores(session: Session = Depends(get_session)):
             "is_wishlist": s.is_wishlist,
             "type": type_status,
             "color": color,
-            "reviews_count": len(reviews)
+            "reviews_count": review_count
         })
     return JSONResponse(content=result)
+
+@app.get("/api/feed")
+def get_feed(session: Session = Depends(get_session)):
+    rows = session.exec(
+        select(Review, Store.name, Store.id)
+        .join(Store, Review.store_id == Store.id)
+        .order_by(Review.id.desc())
+    ).all()
+    return [
+        {
+            "id": review.id,
+            "store_id": store_id,
+            "store_name": store_name,
+            "bean_name": review.bean_name,
+            "content": review.content,
+            "front_card_path": review.front_card_path,
+            "back_card_path": review.back_card_path
+        }
+        for review, store_name, store_id in rows
+    ]
 
 @app.post("/api/stores")
 async def create_store(request: Request, session: Session = Depends(get_session), admin=Depends(require_admin)):
@@ -121,16 +146,27 @@ def create_review(
     
     front_path, back_path = None, None
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+
+    def save_image(upload: UploadFile, suffix: str):
+        if not upload or not upload.filename:
+            return None
+        if not upload.content_type or not upload.content_type.startswith("image/"):
+            raise ValueError("Only image uploads are allowed.")
+        data = upload.file.read()
+        max_bytes = 5 * 1024 * 1024
+        if len(data) > max_bytes:
+            raise ValueError("Image file is too large. Max 5MB.")
+        safe_name = os.path.basename(upload.filename).replace(" ", "_")
+        file_path = f"{upload_dir}/{timestamp}_{suffix}_{safe_name}"
+        with open(file_path, "wb") as buffer:
+            buffer.write(data)
+        return file_path
     
-    if front_image and front_image.filename:
-        front_path = f"{upload_dir}/{timestamp}_front_{front_image.filename}"
-        with open(front_path, "wb") as buffer:
-            buffer.write(front_image.file.read())
-            
-    if back_image and back_image.filename:
-        back_path = f"{upload_dir}/{timestamp}_back_{back_image.filename}"
-        with open(back_path, "wb") as buffer:
-            buffer.write(back_image.file.read())
+    try:
+        front_path = save_image(front_image, "front")
+        back_path = save_image(back_image, "back")
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"message": str(e)})
             
     color = extract_flavor_color(content)
     

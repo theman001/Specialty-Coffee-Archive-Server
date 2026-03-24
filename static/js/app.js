@@ -378,15 +378,8 @@ async function renderFeed() {
     const container = document.getElementById('feedContent');
     container.innerHTML = '<div class="col-span-full text-center p-20 opacity-50">로딩 중...</div>';
     try {
-        const res = await fetch('/api/stores');
-        const stores = await res.json();
-        let allReviews = [];
-        for (let s of stores) {
-            const rRes = await fetch(`/api/stores/${s.id}/reviews`);
-            const reviews = await rRes.json();
-            reviews.forEach(r => allReviews.push({ ...r, store_name: s.name, store_id: s.id }));
-        }
-        allReviews.sort((a,b) => b.id - a.id);
+        const res = await fetch('/api/feed');
+        const allReviews = await res.json();
         
         container.innerHTML = allReviews.length ? allReviews.map(r => `
             <div class="bg-white dark:bg-coffee-panel p-6 rounded-3xl border border-slate-200 dark:border-coffee-border shadow-xl hover:scale-[1.02] transition-transform cursor-pointer" onclick="openStoreByID(${r.store_id})">
@@ -547,20 +540,22 @@ window.deleteDevice = async function(deviceId) {
 
 window.handleLogout = async function() {
     console.log("Logout triggered");
-    if (!confirm("관리자 세션을 종료하고 읽기 모드로 전환하시겠습니까?")) return;
+    // Escaped Korean: "관리자 세션을 종료하고 읽기 모드로 전환하시겠습니까?"
+    if (!window.confirm("\uad00\ub9ac\uc790 \uc138\uc158\uc744 \uc885\ub8cc\ud558\uace0 \uc77d\uae30 \ubaa8\ub4dc\ub85c \uc804\ud658\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?")) return;
     try {
-        const res = await fetch('/api/auth/logout', { method: 'POST' });
-        // Client-side fallback cookie clearing
-        document.cookie = "admin_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        const res = await window.fetch('/api/auth/logout', { method: 'POST' });
+        // Client-side fallback cookie clearing (works if not HttpOnly)
+        document.cookie = "admin_token=; Max-Age=0; path=/;";
         
         if (res.ok) {
-            alert("게스트 모드로 전환되었습니다.");
+            // Escaped Korean: "게스트 모드로 전환되었습니다."
+            window.alert("\uac8c\uc2a4\ud2b8 \ubaa8\ub4dc\ub85c \uc804\ud658\ub418\uc5c8\uc2b5\ub2c8\uae4c.");
         }
-        location.reload();
+        window.location.reload();
     } catch (e) { 
         console.error("Logout failed:", e); 
-        document.cookie = "admin_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        location.reload();
+        document.cookie = "admin_token=; Max-Age=0; path=/;";
+        window.location.reload();
     }
 };
 

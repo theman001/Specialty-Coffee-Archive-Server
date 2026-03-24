@@ -112,9 +112,19 @@ def require_admin(user: dict = Depends(get_current_user)):
 RP_ID = os.getenv("RP_ID", "localhost")
 RP_NAME = "Specialty Coffee Archive"
 ORIGIN = os.getenv("RP_ORIGIN", "http://localhost:8000")
+COOKIE_SECURE = ORIGIN.startswith("https://")
 
 # For a single-user app, storing the active challenge globally is acceptable.
 ACTIVE_CHALLENGES = {}
+
+def get_cookie_kwargs():
+    return {
+        "httponly": True,
+        "max_age": 315360000,
+        "path": "/",
+        "samesite": "lax",
+        "secure": COOKIE_SECURE,
+    }
 
 @router.get("/register/generate")
 def generate_register_opts(request: Request):
@@ -152,7 +162,7 @@ async def verify_register(request: Request, session: Session = Depends(get_sessi
         
         # Save credential
         cred = WebAuthnCredential(
-            credential_id=base64.urlsafe_b64encode(verification.credential_id).decode('utf-8'),
+            id=base64.urlsafe_b64encode(verification.credential_id).decode('utf-8'),
             public_key=base64.urlsafe_b64encode(verification.credential_public_key).decode('utf-8'),
             sign_count=verification.sign_count
         )
@@ -182,7 +192,7 @@ async def verify_login(request: Request, session: Session = Depends(get_session)
         raise HTTPException(status_code=400, detail="Missing credential ID")
         
     # Find credential
-    cred = session.exec(select(WebAuthnCredential).where(WebAuthnCredential.credential_id == cred_id_b64)).first()
+    cred = session.exec(select(WebAuthnCredential).where(WebAuthnCredential.id == cred_id_b64)).first()
     if not cred:
         raise HTTPException(status_code=404, detail="Device not recognized.")
         
@@ -204,7 +214,7 @@ async def verify_login(request: Request, session: Session = Depends(get_session)
         # Issue permanent JWT Cookie
         token = create_admin_token()
         response = JSONResponse(content={"status": "success"})
-        response.set_cookie(key=COOKIE_NAME, value=token, httponly=True, max_age=315360000)
+        response.set_cookie(key=COOKIE_NAME, value=token, **get_cookie_kwargs())
         return response
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -253,23 +263,24 @@ async def login_via_otp(request: Request, session: Session = Depends(get_session
     if totp.verify(code):
         token = create_admin_token()
         response = JSONResponse(content={"status": "success"})
-        response.set_cookie(key=COOKIE_NAME, value=token, httponly=True, max_age=315360000)
+        response.set_cookie(key=COOKIE_NAME, value=token, **get_cookie_kwargs())
         return response
     else:
         raise HTTPException(status_code=400, detail="Invalid code.")
 
 @router.post("/logout")
-async def logout(response: Response):
-    # Ensure cookie is cleared for the exact path it was set to
-    response.delete_cookie(key=COOKIE_NAME, path="/", httponly=True)
-    return {"status": "success"}
+async def logout():
+    # Return explicit response with cookie clearing
+    response = JSONResponse(content={"status": "success"})
+    response.delete_cookie(key=COOKIE_NAME, path="/", httponly=True, samesite="lax")
+    return response
 
 @router.post("/login/whitelist")
 async def login_whitelist(request: Request, response: Response, session: Session = Depends(get_session)):
     if check_is_whitelisted(request, session):
         # Create persistent JWT token
         token = create_admin_token()
-        response.set_cookie(key=COOKIE_NAME, value=token, max_age=315360000, httponly=True)
+        response.set_cookie(key=COOKIE_NAME, value=token, **get_cookie_kwargs())
         return {"status": "success"}
     raise HTTPException(status_code=403, detail="Whitelist (IP/DeviceID) not met")
 
@@ -293,7 +304,7 @@ async def register_device(request: Request, session: Session = Depends(get_sessi
     
     response = JSONResponse(content={"status": "success"})
     # Also set the cookie for the user immediately if they are on Home network
-    response.set_cookie(key="device_id", value=dev_id, max_age=315360000, httponly=True)
+    response.set_cookie(key="device_id", value=dev_id, **get_cookie_kwargs())
     return response
 
 @router.get("/device/list")
