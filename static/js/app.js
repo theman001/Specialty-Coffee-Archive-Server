@@ -618,6 +618,16 @@ function setupEventListeners() {
 
     const nl = document.getElementById('nav-login');
     if (nl) nl.onclick = () => attemptWhitelistLogin();
+
+    // Close search results when clicking outside
+    document.addEventListener('click', (e) => {
+        const container = document.getElementById('searchResults');
+        const input = document.getElementById('searchInput');
+        const btn = document.getElementById('searchBtn');
+        if (container && !container.contains(e.target) && !input.contains(e.target) && !btn.contains(e.target)) {
+            container.classList.add('hidden');
+        }
+    });
     
     document.getElementById('btnCancelAuth').onclick = () => {
         const m = document.getElementById('authModal');
