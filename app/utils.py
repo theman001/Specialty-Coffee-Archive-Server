@@ -50,8 +50,13 @@ def search_naver_local(query: str):
         'X-Naver-Client-Secret': client_secret
     }
     
-    url = f"https://openapi.naver.com/v1/search/local.json?query={query}&display=5"
-    resp = requests.get(url, headers=headers)
+    url = "https://openapi.naver.com/v1/search/local.json"
+    resp = requests.get(
+        url,
+        headers=headers,
+        params={"query": query, "display": 5},
+        timeout=8
+    )
     
     if resp.status_code != 200:
         return []

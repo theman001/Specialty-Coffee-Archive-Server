@@ -52,10 +52,12 @@
     
     <!-- 4-Core Navbar -->
     <nav class="order-last md:order-first w-full md:w-20 lg:hover:w-64 h-16 md:h-full bg-slate-50 dark:bg-coffee-nav border-t md:border-t-0 md:border-r border-slate-200 dark:border-coffee-border flex flex-row md:flex-col items-center justify-around md:justify-start transition-all duration-300 z-50 group flex-shrink-0 relative">
-        <!-- Logo Area (Desktop only) -->
-        <div class="hidden md:flex h-20 w-full items-center justify-center border-b border-slate-200 dark:border-coffee-border mb-4 overflow-hidden gap-3 px-4">
-            <img src="/static/logo.jpg" class="w-8 h-8 rounded-lg shadow-lg flex-shrink-0" alt="Logo">
-            <span class="font-serif font-bold text-xl opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap text-coffee-btn dark:text-coffee-accent">Coffee Archive</span>
+        <!-- Logo Area (Desktop only): collapsed shows logo only; expanded (hover) shows logo + title -->
+        <div class="hidden md:flex h-20 w-full items-center justify-center border-b border-slate-200 dark:border-coffee-border mb-4 overflow-hidden px-2 lg:px-4">
+            <div class="flex items-center justify-center gap-0 lg:group-hover:gap-3 min-w-0">
+                <img src="/static/logo.jpg" class="w-8 h-8 rounded-lg shadow-lg flex-shrink-0" alt="Logo">
+                <span class="font-serif font-bold text-xl text-coffee-btn dark:text-coffee-accent whitespace-nowrap overflow-hidden max-w-0 opacity-0 lg:group-hover:max-w-[13rem] lg:group-hover:opacity-100 transition-[max-width,opacity] duration-300 ease-out">Coffee Archive</span>
+            </div>
         </div>
 
         <!-- Menu Items -->
@@ -131,7 +133,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                         </button>
                     </div>
-                    <div id="searchResults" class="mt-2 bg-white dark:bg-coffee-card rounded-xl shadow-lg border border-slate-200 dark:border-coffee-border max-h-60 overflow-y-auto hidden absolute w-[calc(100%-2rem)] z-50"></div>
+                    <div id="searchResults" class="mt-2 bg-white dark:bg-coffee-card rounded-xl shadow-lg border border-slate-200 dark:border-coffee-border max-h-60 overflow-y-auto hidden absolute left-0 right-0 w-full md:right-auto md:w-1/2 md:max-w-sm z-50"></div>
                 </div>
                 <!-- Content Area -->
                 <main id="sidebarContent" class="flex-1 overflow-y-auto p-4 custom-scrollbar bg-white dark:bg-coffee-panel relative">
@@ -358,6 +360,11 @@
 
     <!-- Scripts -->
     <script>const USER_ROLE = "{{ user_role }}";</script>
-    <script src="/static/js/app.js?v=38"></script>
+    <script src="/static/js/http.js?v=8"></script>
+    <script src="/static/js/map-core.js?v=8"></script>
+    <script src="/static/js/store-map.js?v=10"></script>
+    <script src="/static/js/wiki.js?v=1"></script>
+    <script src="/static/js/auth.js?v=1"></script>
+    <script src="/static/js/app.js?v=48"></script>
 </body>
 </html>
