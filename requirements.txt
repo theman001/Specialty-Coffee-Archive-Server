@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlmodel
+python-multipart
+jinja2
+pyproj
+python-dotenv
+requests
+Pillow
+webauthn>=2.0.0
+PyJWT>=2.8.0
+pyotp

@@ -1,0 +1,156 @@
+/* static/css/styles.css */
+@import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap');
+
+:root {
+  --map-filter: sepia(0.20) hue-rotate(-5deg) contrast(1.05) saturate(1.05) brightness(0.95);
+  --transition-speed: 0.3s;
+}
+
+html.dark {
+  --map-filter: brightness(0.8) contrast(1.2) saturate(0.8);
+}
+
+body {
+  transition: background-color var(--transition-speed), color var(--transition-speed);
+}
+
+/* Base custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(163, 124, 100, 0.3);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(163, 124, 100, 0.6);
+}
+
+/* Premium card hover fx */
+.premium-card {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.premium-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px -5px rgba(140, 107, 93, 0.15);
+}
+
+/* Leaflet Customizations - Light mode: vintage paper tone */
+html:not(.dark) .leaflet-tile-pane {
+  filter: sepia(0.20) hue-rotate(-5deg) contrast(1.05) saturate(1.05) brightness(0.95);
+  transition: filter var(--transition-speed);
+}
+
+/* Leaflet Customizations - Dark mode: warm coffee-brown, high brightness for readability */
+html.dark .leaflet-tile-pane {
+  filter: sepia(0.4) hue-rotate(-12deg) brightness(1.15) contrast(0.95) saturate(1.3) !important;
+  transition: filter var(--transition-speed);
+}
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out,
+.leaflet-control-attribution {
+  filter: none !important; /* Keep controls clear */
+}
+
+/* Custom DivIcon Marker Styling */
+.custom-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% 50% 50% 0;
+  width: 32px !important;
+  height: 32px !important;
+  transform: rotate(-45deg);
+  box-shadow: 2px 3px 8px rgba(0,0,0,0.5);
+  border: 2px solid rgba(255,255,255,0.9);
+  transition: transform 0.2s, box-shadow 0.2s;
+  opacity: 1 !important;
+  z-index: 500 !important;
+}
+.custom-marker:hover {
+  transform: scale(1.15) rotate(-45deg);
+  box-shadow: 3px 5px 12px rgba(0,0,0,0.6);
+  z-index: 1000 !important;
+}
+.custom-marker-inner {
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+}
+
+@keyframes pulse {
+  0% { transform: rotate(-45deg) scale(1); box-shadow: 0 0 0 0 rgba(255, 159, 67, 0.7); }
+  70% { transform: rotate(-45deg) scale(1.1); box-shadow: 0 0 0 10px rgba(255, 159, 67, 0); }
+  100% { transform: rotate(-45deg) scale(1); box-shadow: 0 0 0 0 rgba(255, 159, 67, 0); }
+}
+
+/* Custom Popup Design */
+.leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(224, 206, 199, 0.5);
+}
+html.dark .leaflet-popup-content-wrapper {
+  background: rgba(35, 24, 17, 0.95);
+  color: #E5E0C3;
+  border-color: #3A2218;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  line-height: 1.5;
+  font-family: 'Pretendard', sans-serif;
+}
+.leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.95);
+}
+html.dark .leaflet-popup-tip {
+  background: rgba(35, 24, 17, 0.95);
+}
+
+/* Navigation Active State */
+.nav-btn.active {
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+html.dark .nav-btn.active {
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
+}
+
+/* [NEW] Dark Mode Legibility Fixes */
+html.dark .premium-card h4 {
+  color: #D5CEA3 !important; /* Bright Gold */
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+html.dark .premium-card p {
+  color: #B2A89A !important; /* Lighter Muted */
+}
+
+/* Card flip for potential wiki/feed use */
+.perspective-1000 { perspective: 1000px; }
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+.flip-card:hover .flip-card-inner { transform: rotateY(180deg); }
+.flip-card-front, .flip-card-back {
+  width: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.flip-card-back {
+  transform: rotateY(180deg);
+  position: absolute;
+  top: 0; left: 0;
+}

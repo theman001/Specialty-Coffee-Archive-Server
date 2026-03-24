@@ -1,0 +1,28 @@
+# Dependency directories
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environment variables
+.env
+
+# Data files (Sensitive or Test)
+data/*.db
+data/secret.key
+# Keep the directory but not the files
+!data/.gitkeep
+
+# Uploaded images
+static/uploads/bean_cards/*
+!static/uploads/bean_cards/.gitkeep
+
+# IDE and System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temp/Junk files
+tmp.html
+*.log

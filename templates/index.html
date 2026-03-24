@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Specialty Coffee Archive</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        coffee: {
+                            // Dark Theme Core Palette
+                            root: '#1A120B',   // Background deepest
+                            nav: '#150E09',    // Navbar
+                            panel: '#231811',  // Sidebars and Cards
+                            card: '#2A1D15',   // Hover state / Element bg
+                            border: '#3A2218', 
+                            accent: '#D5CEA3', // Gold/Tan text
+                            accentHover: '#E5E0C3',
+                            muted: '#A89F91',
+                            text: '#E5E0C3',
+                            btn: '#8c5c4a',
+                            btnHover: '#a6725e',
+                            // Light Theme Overrides (using standard tailwind names via class:dark)
+                        }
+                    },
+                    fontFamily: {
+                        myeongjo: ['Nanum Myeongjo', 'serif'],
+                        pretendard: ['Pretendard', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css?v=25" />
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- QR Code Library (Optional, for OTP) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-white dark:bg-coffee-root text-slate-800 dark:text-coffee-text font-sans h-screen flex flex-col md:flex-row overflow-hidden selection:bg-coffee-btn selection:text-white transition-colors duration-300">
+    
+    <!-- 4-Core Navbar -->
+    <nav class="order-last md:order-first w-full md:w-20 lg:hover:w-64 h-16 md:h-full bg-slate-50 dark:bg-coffee-nav border-t md:border-t-0 md:border-r border-slate-200 dark:border-coffee-border flex flex-row md:flex-col items-center justify-around md:justify-start transition-all duration-300 z-50 group flex-shrink-0 relative">
+        <!-- Logo Area (Desktop only) -->
+        <div class="hidden md:flex h-20 w-full items-center justify-center border-b border-slate-200 dark:border-coffee-border mb-4 overflow-hidden">
+            <span class="font-serif font-bold text-xl opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap text-coffee-btn dark:text-coffee-accent">Coffee Archive</span>
+            <span class="font-serif font-bold text-xl lg:group-hover:hidden whitespace-nowrap text-coffee-btn dark:text-coffee-accent absolute">CA</span>
+        </div>
+
+        <!-- Menu Items -->
+        <div class="flex flex-row md:flex-col w-full md:gap-2 px-2 md:px-0 flex-1">
+            <!-- Map & Wish -->
+            <button onclick="switchView('map')" id="nav-map" class="nav-btn active relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] rounded-xl transition-all group/btn" title="Map & Wish">
+                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">Map & Wish</span>
+            </button>
+            <!-- Archive Feed -->
+            <button onclick="switchView('feed')" id="nav-feed" class="nav-btn relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] rounded-xl transition-all group/btn" title="Archive Feed">
+                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">Archive Feed</span>
+            </button>
+            <!-- Home Cafe -->
+            <button onclick="switchView('homecafe')" id="nav-homecafe" class="nav-btn relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] rounded-xl transition-all group/btn" title="Home Cafe">
+                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">Home Cafe</span>
+            </button>
+            <!-- Coffee Wiki -->
+            <button onclick="switchView('wiki')" id="nav-wiki" class="nav-btn relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] rounded-xl transition-all group/btn" title="Coffee Wiki">
+                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">Coffee Wiki</span>
+            </button>
+        </div>
+
+        <!-- Utility Buttons (Bottom) -->
+        <div class="flex flex-row md:flex-col w-full md:gap-2 px-2 md:px-0 py-2 border-l md:border-l-0 md:border-t border-slate-200 dark:border-coffee-border">
+            <!-- Theme Toggle -->
+            <button id="themeToggleBtn" class="relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted transition-colors" title="Toggle Light/Dark Mode">
+                <svg id="themeIconSun" class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                <svg id="themeIconMoon" class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">테마 변경</span>
+            </button>
+            <!-- Login Button (Visible for Guests) -->
+            <button id="nav-login" class="{% if user_role == 'admin' %}hidden{% endif %} relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors" title="Login">
+                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">관리자 로그인</span>
+            </button>
+            <!-- Settings (Visible for Admin) -->
+            <button id="nav-settings" class="{% if user_role != 'admin' %}hidden{% endif %} relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors" title="Admin Settings">
+                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">환경 설정</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Content Containers (View Switching) -->
+    <div id="view-container" class="flex-1 flex overflow-hidden w-full relative h-[calc(100vh-64px)] md:h-screen">
+        
+        <!-- 1. MAP VIEW -->
+        <div id="view-map" class="flex-1 flex flex-col md:flex-row w-full h-full">
+            <aside id="sidebar" class="w-full md:w-96 h-full flex flex-col z-20 shadow-2xl transition-transform duration-300 bg-white dark:bg-coffee-panel border-r border-slate-200 dark:border-coffee-border shrink-0">
+                <header class="p-6 border-b border-slate-200 dark:border-coffee-border flex justify-between items-center bg-white dark:bg-coffee-panel">
+                    <div>
+                        <h1 class="text-3xl font-serif font-bold text-coffee-btn dark:text-coffee-accent tracking-tight">Map & Wish</h1>
+                        <p class="text-sm text-slate-500 dark:text-coffee-muted mt-2">나만의 카페 즐겨찾기 지도</p>
+                    </div>
+                    <button id="guideWriteBtn" class="bg-coffee-btn text-white rounded-full p-3 shadow-md hover:bg-coffee-btnHover transition-transform hover:scale-105 tooltip" data-tip="새 글 작성하기">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                    </button>
+                </header>
+                <div class="p-4 border-b border-slate-200 dark:border-coffee-border">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="카페 검색 (네이버 Local)" 
+                               class="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-100 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border focus:outline-none focus:ring-2 focus:ring-coffee-btn dark:focus:ring-coffee-accent text-slate-800 dark:text-coffee-text placeholder-slate-400 dark:placeholder-coffee-muted transition-all font-sans">
+                        <button id="searchBtn" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        </button>
+                    </div>
+                    <div id="searchResults" class="mt-2 bg-white dark:bg-coffee-card rounded-xl shadow-lg border border-slate-200 dark:border-coffee-border max-h-60 overflow-y-auto hidden absolute w-[calc(100%-2rem)] z-50"></div>
+                </div>
+                <!-- Content Area -->
+                <main id="sidebarContent" class="flex-1 overflow-y-auto p-4 custom-scrollbar bg-white dark:bg-coffee-panel relative">
+                    <div id="storeListContainer" class="space-y-4"></div>
+                    <div id="storeDetailContainer" class="hidden">
+                        <button id="backToListBtn" class="flex items-center text-slate-500 dark:text-coffee-muted hover:text-coffee-btn transition-colors mb-6 text-sm font-medium">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg> 목록으로 돌아가기
+                        </button>
+                        <div id="storeDetailHeader" class="mb-6">
+                            <div class="flex justify-between items-start">
+                                <h2 id="detailStoreName" class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent leading-tight">매장 이름</h2>
+                                <button id="detailWishlistBtn" class="text-slate-300 dark:text-coffee-muted hover:text-pink-500 transition-colors tooltip"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" id="detailWishlistIcon"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg></button>
+                            </div>
+                            <p id="detailStoreAddress" class="text-sm text-slate-500 dark:text-coffee-muted mt-1">주소</p>
+                        </div>
+                        <div id="existingReviews" class="mb-8 space-y-4">
+                            <h3 class="text-lg font-serif font-bold border-b border-slate-200 dark:border-coffee-border pb-2 mb-4 text-slate-800 dark:text-coffee-accent">Tasting Notes</h3>
+                            <div id="reviewsList" class="space-y-4"></div>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-coffee-card p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-coffee-border premium-card">
+                            <h3 class="text-md font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-coffee-accent">
+                                <svg class="w-4 h-4 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg> 새 노트 작성
+                            </h3>
+                            <form id="reviewForm" class="space-y-4 pb-20 md:pb-0">
+                                <input type="hidden" id="formStoreId">
+                                <div><label class="block text-xs font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">원두 이름</label><input type="text" id="beanName" required class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm"></div>
+                                <div><label class="block text-xs font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">테이스팅 노트 & 리뷰</label><textarea id="reviewContent" rows="5" required class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm resize-none"></textarea></div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-2">
+                                        <label class="block text-[10px] font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-tighter">앞면 (Front)</label>
+                                        <div id="dropZoneFront" class="w-full h-32 border-2 border-dashed border-slate-200 dark:border-coffee-border rounded-xl flex items-center justify-center relative group hover:border-coffee-btn transition-colors">
+                                            <input type="file" id="frontImage" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                                            <svg class="w-6 h-6 text-slate-300 dark:text-coffee-border group-hover:text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                            <div id="frontPreview" class="hidden absolute inset-0 bg-white dark:bg-coffee-panel rounded-xl flex items-center justify-center p-1 z-20"><img src="" class="max-h-full max-w-full rounded-lg object-contain"></div>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="block text-[10px] font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-tighter">뒷면 (Back)</label>
+                                        <div id="dropZoneBack" class="w-full h-32 border-2 border-dashed border-slate-200 dark:border-coffee-border rounded-xl flex items-center justify-center relative group hover:border-coffee-btn transition-colors">
+                                            <input type="file" id="backImage" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                                            <svg class="w-6 h-6 text-slate-300 dark:text-coffee-border group-hover:text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                            <div id="backPreview" class="hidden absolute inset-0 bg-white dark:bg-coffee-panel rounded-xl flex items-center justify-center p-1 z-20"><img src="" class="max-h-full max-w-full rounded-lg object-contain"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full py-3 rounded-xl bg-coffee-btn text-white font-medium hover:bg-coffee-btnHover transition-all shadow-md mt-4">기록 저장하기</button>
+                            </form>
+                        </div>
+                    </div>
+                </main>
+            </aside>
+            <div id="mapContainer" class="flex-1 h-full z-10 bg-slate-100 dark:bg-coffee-root relative">
+                <div id="map" class="w-full h-full"></div>
+            </div>
+        </div>
+
+        <!-- 2. FEED VIEW (Chronological Cards) -->
+        <div id="view-feed" class="flex-1 flex flex-col w-full h-full hidden overflow-y-auto bg-slate-50 dark:bg-coffee-root p-8 custom-scrollbar">
+            <header class="max-w-4xl mx-auto w-full mb-12">
+                <h1 class="text-4xl font-serif font-bold text-slate-800 dark:text-coffee-accent">Archive Feed</h1>
+                <p class="text-slate-500 dark:text-coffee-muted mt-2">시간 순으로 기록된 모든 커피 아카이브</p>
+            </header>
+            <div id="feedContent" class="max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Feed Cards injected here -->
+                <div class="col-span-full border-2 border-dashed border-slate-200 dark:border-coffee-border rounded-3xl p-20 text-center opacity-50">
+                    <p class="text-slate-400">데이터를 불러오는 중입니다...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. HOME CAFE VIEW -->
+        <div id="view-homecafe" class="flex-1 flex flex-col w-full h-full hidden bg-slate-50 dark:bg-coffee-root p-8">
+            <header class="max-w-4xl mx-auto w-full mb-8">
+                <h1 class="text-4xl font-serif font-bold text-slate-800 dark:text-coffee-accent">Home Cafe Archive</h1>
+                <p class="text-slate-500 dark:text-coffee-muted mt-2">집에서 직접 내린 커피 기록 (Draft)</p>
+            </header>
+            <div class="flex-1 max-w-4xl mx-auto w-full flex items-center justify-center">
+                <div class="text-center p-12 bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border rounded-3xl shadow-xl">
+                    <svg class="w-20 h-20 text-coffee-btn mx-auto mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.628.283a2 2 0 01-1.186.13l-2.46-.494a2 2 0 01-1.353-.82L5.432 12.3c-.662-.883-.984-1.956-.902-3.032l.142-1.85a2 2 0 011.666-1.834l3.352-.57a2 2 0 011.53.385l2.42 1.613a2 2 0 001.11.332h3.2a12.035 12.035 0 017.382 2.53l.11.085a2 2 0 01.378 2.622l-1.428 2.143a2 2 0 01-1.664.889z" /></svg>
+                    <h2 class="text-2xl font-bold mb-4">준비 중인 기능입니다.</h2>
+                    <p class="text-slate-500 dark:text-coffee-muted">홈카페 도구, 레시피, 배치 브루잉 등을 기록하는 공간으로 개발 예정입니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. COFFEE WIKI VIEW -->
+        <div id="view-wiki" class="flex-1 flex flex-col w-full h-full hidden bg-slate-50 dark:bg-coffee-root p-8 overflow-y-auto custom-scrollbar">
+            <header class="max-w-4xl mx-auto w-full mb-8 flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-serif font-bold text-slate-800 dark:text-coffee-accent">Coffee Wiki</h1>
+                    <p class="text-slate-500 dark:text-coffee-muted mt-2">커피 용어와 지식 저장소</p>
+                </div>
+                <button id="btnWriteWiki" class="hidden px-5 py-2.5 bg-coffee-btn hover:bg-coffee-btnHover text-white rounded-xl shadow-lg transition-all flex items-center gap-2 font-medium">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    지식 등록하기
+                </button>
+            </header>
+            
+            <div id="wiki-list" class="max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Wiki Cards will be injected here -->
+            </div>
+
+            <div id="wiki-detail" class="max-w-4xl mx-auto w-full hidden bg-white dark:bg-coffee-panel p-10 rounded-3xl shadow-xl border border-slate-200 dark:border-coffee-border relative">
+                <button onclick="closeWikiDetail()" class="absolute top-6 right-6 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg></button>
+                <div id="wiki-detail-content" class="prose dark:prose-invert max-w-none prose-slate prose-headings:font-serif prose-headings:text-slate-800 dark:prose-headings:text-coffee-accent">
+                    <!-- Markdown Rendered Content -->
+                </div>
+            </div>
+        </div>
+
+    </div> <!-- End view-container -->
+
+    <!-- [NEW] Settings Modal (Admin Only UI) -->
+    <div id="settingsModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-coffee-root/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-coffee-panel border border-coffee-border p-8 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar transform scale-95 transition-transform duration-300 relative text-coffee-text">
+            <button id="btnCloseSettings" class="absolute top-6 right-6 text-coffee-muted hover:text-coffee-accent"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            <h2 class="text-3xl font-serif font-bold text-coffee-accent mb-8 border-b border-coffee-border pb-4">관리자 환경 설정</h2>
+            
+            <div class="space-y-12">
+                <!-- 1. WebAuthn (FaceID) -->
+                <section>
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg> 생체 인증 (FaceID/TouchID)</h3>
+                    <p class="text-sm text-coffee-muted mb-4">현재 접속 중인 브라우저를 패스워드리스 로그인 기기로 등록합니다.</p>
+                    <button onclick="registerWebAuthnDevice()" class="inline-flex items-center px-6 py-2 bg-coffee-btn hover:bg-coffee-btnHover text-white rounded-xl shadow-md transition-colors font-medium">새 기기 등록하기</button>
+                </section>
+
+                <!-- 2. OTP (Google Authenticator) -->
+                <section>
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> OTP 2단계 인증 설정</h3>
+                    <p class="text-sm text-coffee-muted mb-6">Google Authenticator 등 OTP 앱을 사용하여 외부망에서도 안전하게 로그인하세요.</p>
+                    <div id="otpSetupArea" class="hidden bg-coffee-card p-6 rounded-2xl border border-coffee-border">
+                        <div id="otpQR" class="w-48 h-48 bg-white p-2 mx-auto mb-4"></div>
+                        <p class="text-xs text-center font-mono text-coffee-accent mb-4" id="otpSecretText"></p>
+                        <div class="flex gap-2">
+                            <input type="text" id="otpVerifyCode" maxlength="6" placeholder="6자리 숫자" class="flex-1 px-4 py-2 rounded-lg bg-coffee-panel border border-coffee-border text-center text-xl font-bold">
+                            <button id="btnVerifyOTP" class="px-6 py-2 bg-coffee-btn text-white rounded-lg">동기화 완료</button>
+                        </div>
+                    </div>
+                    <button id="btnShowOTPSetup" class="inline-flex items-center px-6 py-2 bg-coffee-card hover:bg-coffee-border text-coffee-accent rounded-xl border border-coffee-border transition-colors font-medium">OTP 설정 시작</button>
+                </section>
+
+                <!-- 3. DeviceID (Whitelist) -->
+                <section>
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg> 고정 기기 Whitelist 등록</h3>
+                    <p class="text-sm text-coffee-muted mb-4">현재 브라우저를 '신뢰할 수 있는 기기'로 영구 등록합니다. (외부망에서도 자동 Admin 접속)</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="deviceNickname" placeholder="기기 이름 (예: iPhone 15)" class="flex-1 px-4 py-2 rounded-lg bg-coffee-card border border-coffee-border">
+                        <button onclick="registerThisDeviceID()" class="px-6 py-2 bg-coffee-btn text-white rounded-lg">현재 기기 승인</button>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth / Biometrics Modal -->
+    <div id="authModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-coffee-root/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center transform scale-95 transition-transform duration-300 relative">
+            <h3 class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent mb-2">프라이빗 모드</h3>
+            <p class="text-sm text-slate-500 dark:text-coffee-muted mb-6">Admin 권한이 필요합니다.</p>
+            <div class="space-y-3">
+                <button id="btnWebAuthnLogin" class="w-full py-3 rounded-xl text-white bg-coffee-btn hover:bg-coffee-btnHover font-medium transition-colors shadow-lg flex items-center justify-center gap-2">생체 인증</button>
+                <div class="py-2 flex items-center gap-2 text-xs text-slate-400 dark:text-coffee-muted"><hr class="flex-1 border-slate-200 dark:border-coffee-border"> OR <hr class="flex-1 border-slate-200 dark:border-coffee-border"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="loginOTPCode" maxlength="6" placeholder="OTP 6자리" class="flex-1 px-3 py-2 rounded-lg bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-center font-bold">
+                    <button id="btnLoginOTP" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">확인</button>
+                </div>
+            </div>
+            <button id="btnCancelAuth" class="mt-6 text-sm text-slate-400 dark:text-coffee-muted hover:text-coffee-btn font-medium">취소 (Guest 모드)</button>
+        </div>
+    </div>
+
+    <!-- Storage Confirmation Modal -->
+    <div id="confirmModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-coffee-root/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-coffee-panel border border-coffee-border p-6 rounded-2xl shadow-2xl max-w-sm w-full transform scale-95 transition-transform duration-300" id="confirmModalContent">
+            <h3 class="text-xl font-serif font-bold text-coffee-accent mb-2">새 매장 저장</h3>
+            <p class="text-sm text-coffee-muted mb-6">등록되지 않은 매장입니다. 위시리스트에도 추가하시겠습니까?</p>
+            <div class="flex justify-end gap-3">
+                <button id="btnNotWish" class="px-4 py-2 rounded-xl text-coffee-muted bg-coffee-card hover:bg-coffee-border text-sm font-medium transition-colors border border-coffee-border">기록만 저장</button>
+                <button id="btnYesWish" class="px-4 py-2 rounded-xl text-white bg-coffee-btn hover:bg-coffee-btnHover text-sm font-medium transition-colors shadow-md border border-coffee-border">위시도 추가</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- [NEW] Wiki Write Modal -->
+    <div id="wikiWriteModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-coffee-root/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border p-8 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar transform scale-95 transition-transform duration-300 relative text-coffee-text">
+            <button id="btnCloseWikiWrite" class="absolute top-6 right-6 text-slate-400 dark:text-coffee-muted hover:text-coffee-accent"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            <h2 class="text-3xl font-serif font-bold text-slate-800 dark:text-coffee-accent mb-6">커피 지식 등록</h2>
+            <form id="wikiForm" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-xs font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">제목</label><input type="text" id="wikiTitle" required class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm" placeholder="예: 워시드 가공 방식이란?"></div>
+                    <div><label class="block text-xs font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">카테고리</label><input type="text" id="wikiCategory" required class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm" placeholder="예: 가공 방식, 품종"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">본문 (Markdown 지원)</label>
+                    <textarea id="wikiContent" rows="12" required class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm font-mono focus:ring-2 focus:ring-coffee-btn transition-all outline-none" placeholder="# 제목\n\n여기에 마크다운으로 내용을 작성하세요..."></textarea>
+                </div>
+                <div class="bg-slate-50 dark:bg-coffee-card p-4 rounded-xl border border-slate-100 dark:border-coffee-border">
+                    <p class="text-[10px] font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest mb-2">실시간 미리보기</p>
+                    <div id="wikiPreview" class="prose dark:prose-invert prose-xs max-w-none text-slate-700 dark:text-coffee-text border-t border-slate-200 dark:border-coffee-border pt-3"></div>
+                </div>
+                <button type="submit" class="w-full py-4 rounded-xl bg-coffee-btn text-white font-bold hover:bg-coffee-btnHover transition-all shadow-xl text-lg mt-4">지식 저장하기</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>const USER_ROLE = "{{ user_role }}";</script>
+    <script src="/static/js/app.js?v=27"></script>
+</body>
+</html>

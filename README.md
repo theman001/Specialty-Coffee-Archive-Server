@@ -20,63 +20,71 @@
 
 ---
 
-## 📦 설치 및 실행 방법
+## 📦 설치 및 실행 방법 (Deployment)
 
-### 1. 사전 준비
-- 시스템에 **Docker**와 **Docker Compose**가 설치되어 있어야 합니다.
-- [네이버 개발자 센터](https://developers.naver.com/)에서 '검색 API' 권한이 있는 Client ID와 Secret을 발급받으세요.
+### 1. 일반 서버 (Docker Standard)
+시스템에 Docker와 Docker Compose가 설치된 환경에서 아래 단계를 따릅니다.
 
-### 2. 환경 설정 (.env)
-프로젝트 루트에 `.env ` 파일을 생성하고 아래 내용을 입력합니다.
-```env
-NAVER_CLIENT_ID=your_ID
-NAVER_CLIENT_SECRET=your_Secret
-DATABASE_URL=sqlite:///./data/coffee_archive.db
+1.  **환경 설정**: 루트 디렉토리에 `.env` 파일을 생성합니다.
+2.  **컨테이너 실행**:
+    ```bash
+    docker-compose up --build -d
+    ```
+
+### 2. NAS 서버 배포 (NAS Dedicated)
+NAS(Synology, QNAP 등)에서 운영할 경우, 데이터의 영구 보존을 위해 물리적 경로를 직접 지정하는 것이 좋습니다.
+
+**`docker-compose.yml` 볼륨 매핑 예시**:
+```yaml
+volumes:
+  # NAS 저장소 실제 경로 : 컨테이너 내부 경로 (고정)
+  - /volume1/docker/coffee_archive/data:/app/data
+  - /volume1/docker/coffee_archive/static/uploads:/app/static/uploads
 ```
-
-### 3. 컨테이너 빌드 및 실행
-터미널에서 아래 명령어를 입력합니다.
-```bash
-# 컨테이너 빌드 및 백그라운드 실행
-docker-compose up --build -d
-```
-- `--build `: 소스 코드가 변경되었을 때 이미지를 새로 빌드합니다.
-- `-d `: 데몬(백그라운드) 모드로 실행합니다.
+*   **주의**: NAS 제어판에서 해당 폴더에 대한 읽기/쓰기 권한이 Docker 그룹에 부여되어 있어야 합니다.
 
 ---
 
-## 🐳 꼭 알아두어야 할 Docker 명령어
+## ⚙️ 환경 설정 (.env)
+서버 구동에 필요한 핵심 설정값들입니다.
 
-홈랩 서버에서 운영할 때 자주 사용하게 될 명령어들입니다.
+```env
+NAVER_CLIENT_ID=발급받은_ID
+NAVER_CLIENT_SECRET=발급받은_Secret
+# DB는 컨테이너 내부 경로(/app/data/...) 기준으로 설정하면 볼륨 매핑된 NAS 폴더에 저장됩니다.
+DATABASE_URL=sqlite:///./data/coffee_archive.db
+```
 
-| 기능 | 명령어 | 설명 |
+---
+
+## 🐳 주요 운영 명령어
+
+| 상황 | 명령어 | 설명 |
 | :--- | :--- | :--- |
-| **로그 확인** | `docker-compose logs -f ` | 서버 내부에서 발생하는 로그(에러 등)를 실시간으로 확인합니다. |
-| **서버 중지** | `docker-compose stop ` | 데이터를 보존하며 컨테이너만 잠시 멈춥니다. |
-| **서버 재시작** | `docker-compose restart ` | 설정 변경 후 프로세스를 다시 시작할 때 사용합니다. |
-| **완전 삭제** | `docker-compose down ` | 컨테이너를 삭제합니다. (볼륨 설정 덕분에 DB와 이미지는 유지됩니다.) |
-| **상태 확인** | `docker ps ` | 현재 실행 중인 컨테이너 목록과 포트 번호를 확인합니다. |
+| **최초 실행/빌드** | `docker-compose up --build -d` | 이미지를 빌드하고 백그라운드에서 실행합니다. |
+| **실시간 로그** | `docker-compose logs -f` | 서버 내부 로그 및 에러 상황을 모니터링합니다. |
+| **설정 반영** | `docker-compose restart` | `.env`나 소스 수정 후 프로세스만 재시작합니다. |
+| **완전 재시작** | `docker-compose down && docker-compose up -d` | 컨테이너 구성을 완전히 새로 고침합니다. |
 
 ---
 
 ## 📂 프로젝트 구조
 ```text
 .
-├── app/                # 백엔드 소스 코드
-├── static/             # 정적 파일 (CSS, JS, Images)
-│   └── uploads/        # 업로드된 원두 카드 이미지가 저장되는 곳 (볼륨 마운트)
-├── templates/          # HTML 템플릿 파일
-├── data/               # SQLite 데이터베이스 파일 저장 (볼륨 마운트)
-├── Dockerfile          # 앱 빌드 설정
-├── docker-compose.yml  # 서비스 구성 및 볼륨 설정
-└── requirements.txt    # 파이썬 의존성 목록
+├── app/                # 백엔드 핵심 소스 (Main API, Auth, Database Model)
+├── static/             # 정적 파일 및 업로드 이미지 (볼륨 마운트)
+├── templates/          # HTML 레이아웃 및 UI 컴포넌트
+├── data/               # SQLite 데이터베이스 (볼륨 마운트)
+├── docker-compose.yml  # 서비스 올인원 구성 설정
+└── Dockerfile          # 파이썬 3.11 환경 빌드 설정
 ```
 
 ---
 
-## ⚠️ 주의 사항
-- **데이터 백업**: `./data/ ` 폴더와 `./static/uploads/ ` 폴더는 Docker 외부(호스트)와 연결되어 있으므로, 이 폴더들만 백업하면 모든 기록이 보존됩니다.
-- **API 쿼터**: 네이버 지역 검색 API의 일일 한도를 초과하지 않도록 주의하세요.
+## 💾 데이터 백업 및 보안
+*   **백업 대상**: NAS에 매핑된 `data/` 폴더와 `static/uploads/` 폴더만 정기적으로 백업하면 모든 데이터가 보존됩니다.
+*   **보안**: 외부망 접속 시 Admin 접근을 위해 **장치 ID(Device ID)** 등록 혹은 **OTP** 설정을 반드시 권장합니다.
 
 ---
 **Happy Brewing!** ☕
+
