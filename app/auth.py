@@ -277,3 +277,17 @@ async def register_device(request: Request, session: Session = Depends(get_sessi
     # Also set the cookie for the user immediately if they are on Home network
     response.set_cookie(key="device_id", value=dev_id, max_age=315360000, httponly=True)
     return response
+
+@router.get("/device/list")
+def list_devices(session: Session = Depends(get_session), admin: dict = Depends(require_admin)):
+    devices = session.exec(select(AllowedDevice).order_by(AllowedDevice.created_at.desc())).all()
+    return [{"id": d.id, "device_id": d.device_id, "description": d.description, "created_at": d.created_at.isoformat()} for d in devices]
+
+@router.delete("/device/{device_id}")
+def delete_device(device_id: str, session: Session = Depends(get_session), admin: dict = Depends(require_admin)):
+    dev = session.exec(select(AllowedDevice).where(AllowedDevice.device_id == device_id)).first()
+    if not dev:
+        raise HTTPException(status_code=404, detail="Device not found")
+    session.delete(dev)
+    session.commit()
+    return {"status": "success"}

@@ -272,9 +272,20 @@
                 <section>
                     <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg> 고정 기기 Whitelist 등록</h3>
                     <p class="text-sm text-coffee-muted mb-4">현재 브라우저를 '신뢰할 수 있는 기기'로 영구 등록합니다. (외부망에서도 자동 Admin 접속)</p>
-                    <div class="flex gap-2">
-                        <input type="text" id="deviceNickname" placeholder="기기 이름 (예: iPhone 15)" class="flex-1 px-4 py-2 rounded-lg bg-coffee-card border border-coffee-border">
-                        <button onclick="registerThisDeviceID()" class="px-6 py-2 bg-coffee-btn text-white rounded-lg">현재 기기 승인</button>
+                    <!-- Register Current Device -->
+                    <div class="flex gap-2 mb-6">
+                        <input type="text" id="deviceNickname" placeholder="기기 이름 (예: iPhone 15)" class="flex-1 px-4 py-2 rounded-lg bg-coffee-card border border-coffee-border text-sm">
+                        <button onclick="registerThisDeviceID()" class="px-6 py-2 bg-coffee-btn text-white rounded-lg font-medium hover:bg-coffee-btnHover transition-colors whitespace-nowrap">현재 기기 등록</button>
+                    </div>
+                    <!-- Registered Device List -->
+                    <div class="bg-coffee-card rounded-xl border border-coffee-border overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-coffee-border">
+                            <span class="text-xs font-bold uppercase tracking-wider text-coffee-muted">등록된 기기 목록</span>
+                            <button onclick="loadDeviceList()" class="text-xs text-coffee-btn hover:text-coffee-btnHover font-medium">새로고침</button>
+                        </div>
+                        <div id="deviceListContainer" class="divide-y divide-coffee-border max-h-60 overflow-y-auto custom-scrollbar">
+                            <p class="text-sm text-coffee-muted text-center py-6">불러오는 중...</p>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -335,6 +346,6 @@
 
     <!-- Scripts -->
     <script>const USER_ROLE = "{{ user_role }}";</script>
-    <script src="/static/js/app.js?v=28"></script>
+    <script src="/static/js/app.js?v=29"></script>
 </body>
 </html>
