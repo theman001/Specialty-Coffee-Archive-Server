@@ -288,8 +288,10 @@ function renderMarkers() {
     markers.forEach(m => map.removeLayer(m));
     markers = [];
     storesCache.forEach(store => {
+        // Force the color to match the Type Logic (Pink/Yellow/Gray)
+        const pinColor = store.color; 
         const icon = L.divIcon({
-            html: getIconHtml(store.color),
+            html: getIconHtml(pinColor),
             className: '',
             iconSize: [32, 32],
             iconAnchor: [16, 32],
@@ -516,9 +518,10 @@ window.loadDeviceList = async function() {
 };
 
 window.deleteDevice = async function(deviceId) {
+    if (!deviceId) return;
     const isMe = deviceId === localStorage.getItem('device_id');
     const msg = isMe 
-        ? '현재 접속 중인 기기를 삭제하시겠습니까? 삭제 즉시 관리자 권한을 잃게 됩니다.' 
+        ? '현재 접속 중인 기기를 화이트리스트에서 삭제하시겠습니까? 삭제 즉시 관리자 권한을 잃게 됩니다.' 
         : '이 기기 기록을 화이트리스트에서 삭제하시겠습니까?';
     
     if (!confirm(msg)) return;
@@ -526,8 +529,8 @@ window.deleteDevice = async function(deviceId) {
     try {
         const res = await fetch(`/api/auth/device/${deviceId}`, { method: 'DELETE' });
         if (res.ok) {
+            alert('기기 기록이 성공적으로 삭제되었습니다.');
             if (isMe) {
-                alert('현재 기기가 삭제되었습니다. 접속 권한 확인을 위해 페이지를 새로고침합니다.');
                 location.reload();
             } else {
                 await loadDeviceList();
@@ -540,6 +543,17 @@ window.deleteDevice = async function(deviceId) {
         console.error("Delete failed:", e);
         alert('삭제 요청 중 오류가 발생했습니다.');
     }
+};
+
+window.handleLogout = async function() {
+    if (!confirm("관리자 세션을 종료하고 읽기 모드로 전환하시겠습니까?")) return;
+    try {
+        const res = await fetch('/api/auth/logout', { method: 'POST' });
+        if (res.ok) {
+            alert("게스트 모드로 전환되었습니다.");
+            location.reload();
+        }
+    } catch (e) { console.error("Logout failed:", e); }
 };
 
 // --- Auth Handling ---

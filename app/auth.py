@@ -76,21 +76,22 @@ def create_admin_token() -> str:
     to_encode = {"role": "admin", "exp": expire}
     return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
 
-def get_current_user(request: Request, session: Session = Depends(get_session)) -> dict:
-    # 1. Check IP Whitelist (localhost or private subnets)
+def check_is_whitelisted(request: Request, session: Session) -> bool:
     client_ip = extract_client_ip(request)
     if is_home_network(client_ip):
-        return {"role": "admin", "method": "ip", "ip": client_ip}
-        
-    # 2. Check DeviceID Cookie Whitelist (OR condition)
-    device_id_cookie = request.cookies.get("device_id")
-    if device_id_cookie:
-        # Check against DB
-        allowed = session.exec(select(AllowedDevice).where(AllowedDevice.device_id == device_id_cookie)).first()
+        return True
+    
+    # Check DeviceID (either from header or cookie)
+    device_id = request.headers.get("X-Device-Id") or request.cookies.get("device_id")
+    if device_id:
+        allowed = session.exec(select(AllowedDevice).where(AllowedDevice.device_id == device_id)).first()
         if allowed:
-            return {"role": "admin", "method": "device_id", "ip": client_ip}
+            return True
+    return False
 
-    # 3. Check JWT Session Cookie
+def get_current_user(request: Request, session: Session = Depends(get_session)) -> dict:
+    client_ip = extract_client_ip(request)
+    # JWT Session Token is now the only source of authority for 'admin' role
     token = request.cookies.get(COOKIE_NAME)
     if token:
         try:
@@ -98,9 +99,8 @@ def get_current_user(request: Request, session: Session = Depends(get_session)) 
             if payload.get("role") == "admin":
                 return {"role": "admin", "method": "cookie", "ip": client_ip}
         except jwt.PyJWTError:
-            pass # Invalid token
+            pass 
             
-    # 4. Fallback to Guest
     return {"role": "guest", "method": "none", "ip": client_ip}
 
 def require_admin(user: dict = Depends(get_current_user)):
@@ -258,15 +258,19 @@ async def login_via_otp(request: Request, session: Session = Depends(get_session
     else:
         raise HTTPException(status_code=400, detail="Invalid code.")
 
+@router.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie(COOKIE_NAME)
+    return {"status": "success"}
+
 @router.post("/login/whitelist")
 async def login_whitelist(request: Request, response: Response, session: Session = Depends(get_session)):
-    user = get_current_user(request, session)
-    if user.get("role") == "admin":
-        # Create persistent JWT token so they stay logged in even if IP changes
+    if check_is_whitelisted(request, session):
+        # Create persistent JWT token
         token = create_admin_token()
         response.set_cookie(key=COOKIE_NAME, value=token, max_age=315360000, httponly=True)
         return {"status": "success"}
-    raise HTTPException(status_code=403, detail="Whitelist not met")
+    raise HTTPException(status_code=403, detail="Whitelist (IP/DeviceID) not met")
 
 @router.post("/device/register")
 async def register_device(request: Request, session: Session = Depends(get_session), admin: dict = Depends(require_admin)):

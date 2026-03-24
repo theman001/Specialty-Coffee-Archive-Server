@@ -292,6 +292,14 @@
                             <p class="text-sm text-coffee-muted text-center py-6">불러오는 중...</p>
                         </div>
                     </div>
+                    </div>
+                </section>
+
+                <!-- 4. Read-only Switch (Logout) -->
+                <section class="pt-8 border-t border-coffee-border">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-red-400"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg> 읽기 모드로 전환</h3>
+                    <p class="text-sm text-coffee-muted mb-6">현재 관리자 세션을 종료하고 누구나 볼 수 있는 게스트(읽기 전용) 모드로 돌아갑니다.</p>
+                    <button onclick="handleLogout()" class="inline-flex items-center px-6 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl transition-colors font-medium">관리자 세션 종료하기</button>
                 </section>
             </div>
         </div>
@@ -351,6 +359,6 @@
 
     <!-- Scripts -->
     <script>const USER_ROLE = "{{ user_role }}";</script>
-    <script src="/static/js/app.js?v=32"></script>
+    <script src="/static/js/app.js?v=33"></script>
 </body>
 </html>

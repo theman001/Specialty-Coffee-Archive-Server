@@ -69,9 +69,8 @@ def get_stores(session: Session = Depends(get_session)):
             default_color = "#7f8fa6"
         else:
             type_status = "none"
-            default_color = "#dcdde1"
-            
-        color = s.marker_color if s.marker_color else default_color
+        # Use Type-specific color for the map pin (strictly follow 3-Type Logic)
+        color = default_color
         
         result.append({
             "id": s.id,
