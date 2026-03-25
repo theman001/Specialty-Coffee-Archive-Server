@@ -1,20 +1,11 @@
 import os
-import ipaddress
 import jwt
-import base64
 from datetime import datetime, timedelta
 from fastapi import Request, HTTPException, Response, APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
-from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
-    generate_authentication_options,
-    verify_authentication_response,
-    options_to_json
-)
 import pyotp
-from .database import get_session, WebAuthnCredential, AllowedDevice, AdminSecret
+from .database import get_session, AllowedDevice, AdminSecret
 
 router = APIRouter(prefix="/api/auth")
 
@@ -40,22 +31,6 @@ JWT_SECRET = get_jwt_secret()
 ALGORITHM = "HS256"
 COOKIE_NAME = "admin_token"
 
-def is_home_network(ip_str: str) -> bool:
-    if not ip_str:
-        return False
-    # If it's multiple IPs (X-Forwarded-For chain), take the first one
-    ip_str = ip_str.split(",")[0].strip()
-    
-    if ip_str in ("127.0.0.1", "::1", "localhost"):
-        return True
-        
-    try:
-        ip = ipaddress.ip_address(ip_str)
-        # 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12 are private
-        return ip.is_private
-    except ValueError:
-        return False
-
 def extract_client_ip(request: Request) -> str:
     # Check Cloudflare first
     cf_ip = request.headers.get("CF-Connecting-IP")
@@ -78,17 +53,12 @@ def create_admin_token() -> str:
     return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
 
 def check_is_whitelisted(request: Request, session: Session) -> bool:
-    client_ip = extract_client_ip(request)
-    if is_home_network(client_ip):
-        return True
-    
-    # Check DeviceID (either from header or cookie)
+    """True only if device_id is registered in AllowedDevice (no LAN/IP auto-trust)."""
     device_id = request.headers.get("X-Device-Id") or request.cookies.get("device_id")
-    if device_id:
-        allowed = session.exec(select(AllowedDevice).where(AllowedDevice.device_id == device_id)).first()
-        if allowed:
-            return True
-    return False
+    if not device_id:
+        return False
+    allowed = session.exec(select(AllowedDevice).where(AllowedDevice.device_id == device_id)).first()
+    return bool(allowed)
 
 def get_current_user(request: Request) -> dict:
     client_ip = extract_client_ip(request)
@@ -109,34 +79,15 @@ def require_admin(user: dict = Depends(get_current_user)):
         auth_error(403, "ADMIN_REQUIRED", "Admin permissions required.")
     return user
 
-# WebAuthn Configuration
-RP_ID = os.getenv("RP_ID", "localhost")
-RP_NAME = "Specialty Coffee Archive"
 ORIGIN = os.getenv("RP_ORIGIN", "http://localhost:8000")
 COOKIE_SECURE = ORIGIN.startswith("https://")
 
-ACTIVE_CHALLENGES = {}
-CHALLENGE_TTL_SECONDS = 300
 OTP_ATTEMPT_WINDOW_SECONDS = 300
 OTP_MAX_ATTEMPTS = 5
 OTP_ATTEMPTS = {}
 LOGIN_ATTEMPT_WINDOW_SECONDS = 300
 LOGIN_MAX_ATTEMPTS = 10
 LOGIN_ATTEMPTS = {}
-
-def set_active_challenge(key: str, challenge: bytes):
-    ACTIVE_CHALLENGES[key] = {
-        "challenge": challenge,
-        "expires_at": datetime.utcnow() + timedelta(seconds=CHALLENGE_TTL_SECONDS),
-    }
-
-def pop_active_challenge(key: str):
-    entry = ACTIVE_CHALLENGES.pop(key, None)
-    if not entry:
-        return None
-    if datetime.utcnow() > entry["expires_at"]:
-        return None
-    return entry["challenge"]
 
 def _get_otp_attempt_key(request: Request) -> str:
     client_ip = extract_client_ip(request) or "unknown"
@@ -229,105 +180,6 @@ def get_cookie_kwargs():
         "secure": COOKIE_SECURE,
     }
 
-@router.get("/register/generate")
-def generate_register_opts(request: Request):
-    user = get_current_user(request)
-    if user["role"] != "admin":
-        auth_error(403, "REGISTER_ADMIN_ONLY", "Only admins can register a new device.")
-    
-    options = generate_registration_options(
-        rp_id=RP_ID,
-        rp_name=RP_NAME,
-        user_id=b"admin_user_id_1",
-        user_name="admin",
-    )
-    set_active_challenge("register", options.challenge)
-    return Response(content=options_to_json(options), media_type="application/json")
-
-@router.post("/register/verify")
-async def verify_register(request: Request, session: Session = Depends(get_session)):
-    user = get_current_user(request)
-    if user["role"] != "admin":
-        auth_error(403, "REGISTER_FORBIDDEN", "Forbidden")
-        
-    data = await request.json()
-    challenge = pop_active_challenge("register")
-    if not challenge:
-        auth_error(400, "REGISTER_CHALLENGE_MISSING", "No active challenge")
-        
-    try:
-        verification = verify_registration_response(
-            credential=data,
-            expected_challenge=challenge,
-            expected_rp_id=RP_ID,
-            expected_origin=ORIGIN,
-        )
-        
-        # Save credential
-        cred = WebAuthnCredential(
-            id=base64.urlsafe_b64encode(verification.credential_id).decode('utf-8'),
-            public_key=base64.urlsafe_b64encode(verification.credential_public_key).decode('utf-8'),
-            sign_count=verification.sign_count
-        )
-        session.add(cred)
-        session.commit()
-        return {"status": "success", "message": "Device registered successfully"}
-    except Exception as e:
-        auth_error(400, "REGISTER_VERIFY_FAILED", str(e))
-
-@router.get("/login/generate")
-def generate_login_opts():
-    options = generate_authentication_options(
-        rp_id=RP_ID,
-    )
-    set_active_challenge("login", options.challenge)
-    return Response(content=options_to_json(options), media_type="application/json")
-
-@router.post("/login/verify")
-async def verify_login(request: Request, session: Session = Depends(get_session)):
-    if _is_login_limited(request):
-        auth_error(429, "AUTH_LOGIN_LOCKED", f"Too many login attempts. Try again in {LOGIN_ATTEMPT_WINDOW_SECONDS // 60} minutes.")
-
-    data = await request.json()
-    challenge = pop_active_challenge("login")
-    if not challenge:
-        auth_error(400, "LOGIN_CHALLENGE_MISSING", "No active challenge")
-        
-    cred_id_b64 = data.get("id")
-    if not cred_id_b64:
-        auth_error(400, "LOGIN_CREDENTIAL_ID_MISSING", "Missing credential ID")
-        
-    # Find credential
-    cred = session.exec(select(WebAuthnCredential).where(WebAuthnCredential.id == cred_id_b64)).first()
-    if not cred:
-        _record_login_failure(request)
-        auth_error(404, "LOGIN_DEVICE_NOT_RECOGNIZED", "Device not recognized.")
-        
-    try:
-        verification = verify_authentication_response(
-            credential=data,
-            expected_challenge=challenge,
-            expected_rp_id=RP_ID,
-            expected_origin=ORIGIN,
-            credential_public_key=base64.urlsafe_b64decode(cred.public_key + "=="),
-            credential_current_sign_count=cred.sign_count,
-        )
-        
-        # Update sign count
-        cred.sign_count = verification.new_sign_count
-        session.add(cred)
-        session.commit()
-        
-        # Issue permanent JWT Cookie
-        token = create_admin_token()
-        response = JSONResponse(content={"status": "success"})
-        response.set_cookie(key=COOKIE_NAME, value=token, **get_cookie_kwargs())
-        _clear_login_failures(request)
-        return response
-    except Exception as e:
-        _record_login_failure(request)
-        auth_error(400, "LOGIN_VERIFY_FAILED", str(e))
-
 # --- TOTP (OTP) & Device Registration Endpoints ---
 
 @router.get("/otp/generate")
@@ -369,7 +221,7 @@ async def login_via_otp(request: Request, session: Session = Depends(get_session
     
     admin_sec = session.exec(select(AdminSecret)).first()
     if not admin_sec:
-        auth_error(400, "OTP_SETUP_REQUIRED", "OTP setup required on Home IP first.")
+        auth_error(400, "OTP_SETUP_REQUIRED", "OTP가 서버에 설정되지 않았습니다. 등록된 기기로 관리자 로그인 후 환경 설정에서 OTP를 등록하세요.")
     
     totp = pyotp.TOTP(admin_sec.totp_secret)
     if totp.verify(code):
@@ -401,7 +253,7 @@ async def login_whitelist(request: Request, response: Response, session: Session
         _clear_login_failures(request)
         return {"status": "success"}
     _record_login_failure(request)
-    auth_error(403, "WHITELIST_NOT_MET", "Whitelist (IP/DeviceID) not met")
+    auth_error(403, "WHITELIST_NOT_MET", "등록된 기기(화이트리스트)가 아닙니다.")
 
 @router.post("/device/register")
 async def register_device(request: Request, session: Session = Depends(get_session), admin: dict = Depends(require_admin)):

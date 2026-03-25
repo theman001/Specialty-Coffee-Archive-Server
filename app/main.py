@@ -8,6 +8,9 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from sqlalchemy import func
 import os
+import json
+import time
+import requests
 from dotenv import load_dotenv
 
 def get_naver_client_id():
@@ -113,6 +116,247 @@ def read_root(request: Request, user: dict = Depends(get_current_user)):
 @app.get("/api/search")
 def search_local(query: str):
     return search_naver_local(query)
+
+
+def _metro_cache_path() -> str:
+    # 서버 실행 CWD와 무관하게 고정 경로 사용 (static mount 아래에 둬서 디버깅/배포도 단순화)
+    base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    out_dir = os.path.join(base, "static", "data")
+    os.makedirs(out_dir, exist_ok=True)
+    return os.path.join(out_dir, "metro_osm_lines.geojson")
+
+
+def _metro_routes_cache_path() -> str:
+    base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    out_dir = os.path.join(base, "static", "data")
+    os.makedirs(out_dir, exist_ok=True)
+    return os.path.join(out_dir, "metro_osm_routes.geojson")
+
+
+def _build_overpass_query() -> str:
+    # 수도권 전철: OSM relation(route=subway|train) 기반으로 노선 선형을 가져옵니다.
+    # bbox: (south,west,north,east) - 서울/수도권 커버
+    bbox = "37.0,126.3,38.2,128.3"
+    return f"""
+[out:json][timeout:180];
+(
+  way["railway"="subway"]({bbox});
+  way["railway"="light_rail"]({bbox});
+  way["railway"="rail"]["tunnel"="subway"]({bbox});
+);
+out body geom;
+""".strip()
+
+
+def _build_overpass_routes_query() -> str:
+    # 수도권 전철 "노선 관계(relation)" 기반. relation 태그(ref/colour/name)를 쓰면 호선 분류가 쉬워집니다.
+    # bbox: (south,west,north,east)
+    bbox = "37.0,126.3,38.2,128.3"
+    return f"""
+[out:json][timeout:180];
+(
+  relation["route"="subway"]["network"~"Seoul|Incheon|KORAIL|Korail|Metropolitan|Metro"]({bbox});
+  relation["route"="subway"]["name"~"호선|Line|공항|신분당|경의|중앙|분당|수인|경춘|서해|김포|의정부|인천"]({bbox});
+  relation["route"="subway"]["ref"]({bbox});
+  relation["route"="train"]["service"~"commuter|regional"]["network"~"Seoul|Incheon|KORAIL|Korail"]({bbox});
+);
+out body;
+way(r);
+out body geom;
+""".strip()
+
+
+def _overpass_routes_to_geojson(payload: dict) -> dict:
+    elements = payload.get("elements") or []
+    ways = {}
+    relations = []
+    for el in elements:
+        t = el.get("type")
+        if t == "way":
+            ways[el.get("id")] = el
+        elif t == "relation":
+            relations.append(el)
+
+    features = []
+    for rel in relations:
+        tags = rel.get("tags") or {}
+        ref = str(tags.get("ref") or "")
+        name = str(tags.get("name") or "")
+        colour = str(tags.get("colour") or tags.get("color") or "")
+        network = str(tags.get("network") or "")
+        route = str(tags.get("route") or "")
+
+        for mem in rel.get("members") or []:
+            if mem.get("type") != "way":
+                continue
+            wid = mem.get("ref")
+            w = ways.get(wid)
+            if not w:
+                continue
+            geom = w.get("geometry") or []
+            coords = []
+            for p in geom:
+                lon = p.get("lon")
+                lat = p.get("lat")
+                if lon is None or lat is None:
+                    continue
+                coords.append([lon, lat])
+            if len(coords) < 2:
+                continue
+            features.append({
+                "type": "Feature",
+                "properties": {
+                    "ref": ref,
+                    "name": name,
+                    "colour": colour,
+                    "network": network,
+                    "route": route,
+                    "way_id": int(wid) if wid is not None else None,
+                },
+                "geometry": {"type": "LineString", "coordinates": coords},
+            })
+
+    return {"type": "FeatureCollection", "features": features}
+
+
+def _overpass_to_geojson(payload: dict) -> dict:
+    elements = payload.get("elements") or []
+    features = []
+
+    for el in elements:
+        if el.get("type") != "way":
+            continue
+        geom = el.get("geometry") or []
+        coords = []
+        for p in geom:
+            lon = p.get("lon")
+            lat = p.get("lat")
+            if lon is None or lat is None:
+                continue
+            coords.append([lon, lat])
+        if len(coords) < 2:
+            continue
+        tags = el.get("tags") or {}
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "name": str(tags.get("name") or ""),
+                "ref": str(tags.get("ref") or ""),
+                "colour": str(tags.get("colour") or tags.get("color") or ""),
+                "railway": str(tags.get("railway") or ""),
+                "tunnel": str(tags.get("tunnel") or ""),
+            },
+            "geometry": {"type": "LineString", "coordinates": coords},
+        })
+
+    return {"type": "FeatureCollection", "features": features}
+
+
+@app.get("/api/metro/osm-lines")
+def get_metro_osm_lines(force: int = 0):
+    """
+    옵션 A: Overpass API에서 수도권 전철 노선 선형을 가져와 GeoJSON으로 캐시한 뒤 제공합니다.
+    - force=1: 캐시 무시하고 재생성
+    """
+    cache_path = _metro_cache_path()
+    if not force and os.path.isfile(cache_path):
+        with open(cache_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=86400"})
+
+    q = _build_overpass_query()
+    overpass_urls = [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.nchc.org.tw/api/interpreter",
+    ]
+    last_err = None
+    raw = None
+    headers = {
+        "Content-Type": "text/plain; charset=utf-8",
+        "User-Agent": "SpecialtyCoffeeArchive/1.0 (local dev)",
+    }
+    for url in overpass_urls:
+        try:
+            r = requests.post(url, data=q.encode("utf-8"), headers=headers, timeout=360)
+            if not r.ok:
+                last_err = f"{url} -> HTTP {r.status_code}"
+                continue
+            raw = r.json()
+            break
+        except requests.RequestException as e:
+            last_err = f"{url} -> {type(e).__name__}"
+            continue
+
+    if raw is None:
+        return error_response(502, "OVERPASS_FAILED", f"Overpass failed ({last_err or 'unknown'}). Try again later.")
+
+    geo = _overpass_to_geojson(raw)
+    with open(cache_path, "w", encoding="utf-8") as f:
+        json.dump(geo, f, ensure_ascii=False)
+    return JSONResponse(content=geo, headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/metro/osm-routes")
+def get_metro_osm_routes(force: int = 0):
+    """
+    노선 관계(relation) 기반으로 호선별 속성(ref/colour/name)을 유지한 GeoJSON을 생성/캐시합니다.
+    - force=1: 캐시 무시하고 재생성
+    """
+    cache_path = _metro_routes_cache_path()
+    if not force and os.path.isfile(cache_path):
+        with open(cache_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        # 빈 캐시는 의미가 없으므로 자동 재생성 시도
+        if len(data.get("features") or []) > 0:
+            return JSONResponse(content=data, headers={"Cache-Control": "public, max-age=86400"})
+
+    q = _build_overpass_routes_query()
+    overpass_urls = [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+    ]
+    last_err = None
+    raw = None
+    headers = {
+        "Content-Type": "text/plain; charset=utf-8",
+        "User-Agent": "SpecialtyCoffeeArchive/1.0 (local dev)",
+    }
+    for url in overpass_urls:
+        try:
+            r = requests.post(url, data=q.encode("utf-8"), headers=headers, timeout=360)
+            if not r.ok:
+                last_err = f"{url} -> HTTP {r.status_code}"
+                continue
+            raw = r.json()
+            break
+        except requests.RequestException as e:
+            last_err = f"{url} -> {type(e).__name__}"
+            continue
+
+    if raw is None:
+        return error_response(502, "OVERPASS_FAILED", f"Overpass failed ({last_err or 'unknown'}). Try again later.")
+
+    geo = _overpass_routes_to_geojson(raw)
+    # 생성 중 재로딩/네트워크 변동으로 간헐적으로 빈 결과가 나올 수 있어,
+    # 빈 결과는 캐시하지 않고 에러로 처리합니다.
+    if len(geo.get("features") or []) == 0:
+        return error_response(502, "OVERPASS_EMPTY", "Overpass returned empty route features. Retry.")
+    with open(cache_path, "w", encoding="utf-8") as f:
+        json.dump(geo, f, ensure_ascii=False)
+    return JSONResponse(content=geo, headers={"Cache-Control": "public, max-age=86400"})
+
+@app.get("/api/metro/osm-lines/meta")
+def get_metro_osm_lines_meta():
+    cache_path = _metro_cache_path()
+    if not os.path.isfile(cache_path):
+        return {"cached": False, "features": 0}
+    try:
+        with open(cache_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {"cached": True, "features": len(data.get("features") or [])}
+    except Exception:
+        return {"cached": True, "features": -1}
 
 
 def serialize_stores_for_client(session: Session) -> list:

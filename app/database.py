@@ -26,12 +26,6 @@ class Review(SQLModel, table=True):
     front_card_path: Optional[str] = None
     back_card_path: Optional[str] = None
 
-class WebAuthnCredential(SQLModel, table=True):
-    id: str = Field(primary_key=True)
-    public_key: str = Field(...)
-    sign_count: int = Field(default=0)
-    user_handle: Optional[str] = Field(default=None)
-
 class AllowedDevice(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     device_id: str = Field(index=True, unique=True)

@@ -39,7 +39,7 @@
         }
     </script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/styles.css?v=25" />
+    <link rel="stylesheet" href="/static/css/styles.css?v=26" />
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
@@ -50,81 +50,103 @@
 </head>
 <body class="bg-white dark:bg-coffee-root text-slate-800 dark:text-coffee-text font-sans h-screen flex flex-col md:flex-row overflow-hidden selection:bg-coffee-btn selection:text-white transition-colors duration-300">
     
-    <!-- 4-Core Navbar -->
-    <nav class="order-last md:order-first w-full md:w-20 lg:hover:w-64 h-16 md:h-full bg-slate-50 dark:bg-coffee-nav border-t md:border-t-0 md:border-r border-slate-200 dark:border-coffee-border flex flex-row md:flex-col items-center justify-around md:justify-start transition-all duration-300 z-50 group flex-shrink-0 relative">
-        <!-- Logo Area (Desktop only): collapsed shows logo only; expanded (hover) shows logo + title -->
-        <div class="hidden md:flex h-20 w-full items-center justify-center border-b border-slate-200 dark:border-coffee-border mb-4 overflow-hidden px-2 lg:px-4">
+    <!-- 4-Core Navbar: mobile fixed bottom, utilities right-aligned; desktop sidebar -->
+    <nav id="app-bottom-nav" class="order-last md:order-first w-full md:w-20 lg:hover:w-64 h-16 md:h-full max-md:fixed max-md:bottom-0 max-md:left-0 max-md:right-0 max-md:z-50 max-md:pb-[env(safe-area-inset-bottom,0px)] bg-slate-50 dark:bg-coffee-nav border-t md:border-t-0 md:border-r border-slate-200 dark:border-coffee-border flex flex-row md:flex-col items-stretch md:items-stretch justify-start transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] z-50 group flex-shrink-0 relative max-md:shadow-[0_-8px_30px_rgba(0,0,0,0.12)] dark:max-md:shadow-[0_-8px_30px_rgba(0,0,0,0.45)]">
+        <!-- Logo Area (Desktop only) -->
+        <div class="hidden md:flex h-20 w-full items-center justify-center border-b border-slate-200 dark:border-coffee-border mb-4 overflow-hidden px-2 lg:px-4 shrink-0">
             <div class="flex items-center justify-center gap-0 lg:group-hover:gap-3 min-w-0">
                 <img src="/static/logo.jpg" class="w-8 h-8 rounded-lg shadow-lg flex-shrink-0" alt="Logo">
                 <span class="font-serif font-bold text-xl text-coffee-btn dark:text-coffee-accent whitespace-nowrap overflow-hidden max-w-0 opacity-0 lg:group-hover:max-w-[13rem] lg:group-hover:opacity-100 transition-[max-width,opacity] duration-300 ease-out">Coffee Archive</span>
             </div>
         </div>
 
-        <!-- Menu Items -->
-        <div class="flex flex-row md:flex-col w-full md:gap-2 px-2 md:px-0 flex-1">
-            <!-- Map & Wish -->
-            <button onclick="switchView('map')" id="nav-map" class="nav-btn active relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] rounded-xl transition-all group/btn" title="Map & Wish">
-                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
-                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">Map & Wish</span>
-            </button>
-            <!-- Archive Feed -->
-            <button onclick="switchView('feed')" id="nav-feed" class="nav-btn relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] rounded-xl transition-all group/btn" title="Archive Feed">
-                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">Archive Feed</span>
-            </button>
-            <!-- Home Cafe -->
-            <button onclick="switchView('homecafe')" id="nav-homecafe" class="nav-btn relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] rounded-xl transition-all group/btn" title="Home Cafe">
-                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">Home Cafe</span>
-            </button>
-            <!-- Coffee Wiki -->
-            <button onclick="switchView('wiki')" id="nav-wiki" class="nav-btn relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] rounded-xl transition-all group/btn" title="Coffee Wiki">
-                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">Coffee Wiki</span>
-            </button>
-        </div>
+        <div class="flex flex-row md:flex-col flex-1 w-full min-h-0 items-center md:items-stretch justify-between md:justify-start gap-0 px-1 md:px-0">
+            <!-- Primary menu (mobile: left cluster, desktop: top) -->
+            <div class="flex flex-row md:flex-col flex-1 items-center justify-evenly md:justify-start md:gap-2 md:pt-2 min-w-0">
+                <button onclick="switchView('map')" id="nav-map" class="nav-btn active relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0" title="Map & Wish">
+                    <!-- Desktop: keep icon position fixed to collapsed sidebar width (w-20) -->
+                    <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
+                        <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                    </span>
+                    <!-- Mobile: icon in-flow -->
+                    <svg class="md:hidden w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                    <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">Map & Wish</span>
+                </button>
+                <button onclick="switchView('feed')" id="nav-feed" class="nav-btn relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0" title="Archive Feed">
+                    <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
+                        <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    </span>
+                    <svg class="md:hidden w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">Archive Feed</span>
+                </button>
+                <button onclick="switchView('homecafe')" id="nav-homecafe" class="nav-btn relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0" title="Home Cafe">
+                    <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
+                        <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                    </span>
+                    <svg class="md:hidden w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                    <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">Home Cafe</span>
+                </button>
+                <button onclick="switchView('wiki')" id="nav-wiki" class="nav-btn relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0" title="Coffee Wiki">
+                    <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
+                        <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                    </span>
+                    <svg class="md:hidden w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                    <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">Coffee Wiki</span>
+                </button>
+            </div>
 
-        <!-- Utility Buttons (Bottom) -->
-        <div class="flex flex-row md:flex-col w-full md:gap-2 px-2 md:px-0 py-2 border-l md:border-l-0 md:border-t border-slate-200 dark:border-coffee-border">
-            <!-- Theme Toggle -->
-            <button id="themeToggleBtn" class="relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted transition-colors" title="Toggle Light/Dark Mode">
-                <svg id="themeIconSun" class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                <svg id="themeIconMoon" class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">테마 변경</span>
-            </button>
-            
-            <!-- Login/Settings Button -->
-            {% if user_role != 'admin' %}
-            <button onclick="attemptWhitelistLogin()" id="nav-login" class="relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors" title="Login">
-                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
-                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">관리자 로그인</span>
-            </button>
-            {% else %}
-            <button id="nav-settings" class="relative flex items-center p-3 md:p-4 md:my-1 mx-1 md:mx-2 w-auto md:w-[calc(100%-16px)] hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors" title="Admin Settings">
-                <svg class="w-6 h-6 flex-shrink-0 mx-auto md:mx-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                <span class="hidden md:inline-block ml-4 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm">환경 설정</span>
-            </button>
-            {% endif %}
+            <!-- Utilities: mobile right-aligned, desktop pinned to bottom -->
+            <div class="flex flex-row md:flex-col items-center justify-end md:justify-start gap-0.5 md:gap-2 shrink-0 md:w-full md:mt-auto md:pt-3 md:pb-2 md:border-t border-slate-200 dark:border-coffee-border pr-1 md:pr-0">
+                <button id="themeToggleBtn" class="relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted transition-colors shrink-0" title="Toggle Light/Dark Mode">
+                    <!-- 단일 아이콘 세트(중복 방지): 모바일은 in-flow, 데스크톱은 w-20 슬롯에 고정 -->
+                    <span class="flex items-center justify-center md:absolute md:inset-y-0 md:left-0 md:w-20">
+                        <svg id="themeIconSun" class="w-6 h-6 flex-shrink-0 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        <svg id="themeIconMoon" class="w-6 h-6 flex-shrink-0 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                    </span>
+                    <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">테마 변경</span>
+                </button>
+                {% if user_role != 'admin' %}
+                <button onclick="attemptWhitelistLogin()" id="nav-login" class="relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors shrink-0" title="Login">
+                    <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
+                        <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                    </span>
+                    <svg class="md:hidden w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                    <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">관리자 로그인</span>
+                </button>
+                {% else %}
+                <button id="nav-settings" class="relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors shrink-0" title="Admin Settings">
+                    <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
+                        <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    </span>
+                    <svg class="md:hidden w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">환경 설정</span>
+                </button>
+                {% endif %}
+            </div>
         </div>
     </nav>
 
     <!-- Content Containers (View Switching) -->
-    <div id="view-container" class="flex-1 flex overflow-hidden w-full relative h-[calc(100vh-64px)] md:h-screen">
+    <div id="view-container" class="flex-1 flex overflow-hidden w-full relative h-[calc(100vh-64px)] max-md:pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:h-screen md:pb-0">
         
         <!-- 1. MAP VIEW -->
-        <div id="view-map" class="flex-1 flex flex-col md:flex-row w-full h-full">
-            <aside id="sidebar" class="w-full md:w-96 h-full flex flex-col z-20 shadow-2xl transition-transform duration-300 bg-white dark:bg-coffee-panel border-r border-slate-200 dark:border-coffee-border shrink-0">
-                <header class="p-6 border-b border-slate-200 dark:border-coffee-border flex justify-between items-center bg-white dark:bg-coffee-panel">
-                    <div>
+        <div id="view-map" class="flex-1 flex flex-col md:flex-row w-full h-full relative">
+            <aside id="sidebar" class="w-full md:w-96 h-full flex flex-col z-20 shadow-2xl transition-transform duration-300 ease-out bg-white dark:bg-coffee-panel border-r border-slate-200 dark:border-coffee-border shrink-0 max-md:absolute max-md:left-0 max-md:top-0 max-md:bottom-0 max-md:w-full">
+                <header class="p-6 border-b border-slate-200 dark:border-coffee-border flex justify-between items-center gap-2 bg-white dark:bg-coffee-panel">
+                    <div class="min-w-0 flex-1">
                         <h1 class="text-3xl font-serif font-bold text-coffee-btn dark:text-coffee-accent tracking-tight">Map & Wish</h1>
                         <p class="text-sm text-slate-500 dark:text-coffee-muted mt-2">나만의 카페 즐겨찾기 지도</p>
                     </div>
-                    {% if user_role == 'admin' %}
-                    <button id="guideWriteBtn" class="bg-coffee-btn text-white rounded-full p-3 shadow-md hover:bg-coffee-btnHover transition-transform hover:scale-105 tooltip" data-tip="새 글 작성하기">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                    </button>
-                    {% endif %}
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button type="button" id="btnMapOnlyMobile" class="md:hidden px-3 py-2 rounded-xl text-xs font-semibold bg-slate-200/90 dark:bg-coffee-card text-slate-700 dark:text-coffee-accent border border-slate-200 dark:border-coffee-border hover:bg-slate-200 dark:hover:bg-coffee-border/40 transition-colors whitespace-nowrap" title="지도 보기">지도</button>
+                        {% if user_role == 'admin' %}
+                        <button id="guideWriteBtn" class="bg-coffee-btn text-white rounded-full p-3 shadow-md hover:bg-coffee-btnHover transition-transform hover:scale-105 tooltip shrink-0" data-tip="새 글 작성하기">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        </button>
+                        {% endif %}
+                    </div>
                 </header>
+                {% if user_role == 'admin' %}
                 <div class="p-4 border-b border-slate-200 dark:border-coffee-border">
                     <div class="relative">
                         <input type="text" id="searchInput" placeholder="카페 검색 (네이버 Local)" 
@@ -135,6 +157,7 @@
                     </div>
                     <div id="searchResults" class="mt-2 bg-white dark:bg-coffee-card rounded-xl shadow-lg border border-slate-200 dark:border-coffee-border max-h-60 overflow-y-auto hidden absolute left-0 right-0 w-full md:right-auto md:w-1/2 md:max-w-sm z-50"></div>
                 </div>
+                {% endif %}
                 <!-- Content Area -->
                 <main id="sidebarContent" class="flex-1 overflow-y-auto p-4 custom-scrollbar bg-white dark:bg-coffee-panel relative">
                     <div id="storeListContainer" class="space-y-4"></div>
@@ -153,6 +176,7 @@
                             <h3 class="text-lg font-serif font-bold border-b border-slate-200 dark:border-coffee-border pb-2 mb-4 text-slate-800 dark:text-coffee-accent">Tasting Notes</h3>
                             <div id="reviewsList" class="space-y-4"></div>
                         </div>
+                        {% if user_role == 'admin' %}
                         <div class="bg-slate-50 dark:bg-coffee-card p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-coffee-border premium-card">
                             <h3 class="text-md font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-coffee-accent">
                                 <svg class="w-4 h-4 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg> 새 노트 작성
@@ -182,10 +206,12 @@
                                 <button type="submit" class="w-full py-3 rounded-xl bg-coffee-btn text-white font-medium hover:bg-coffee-btnHover transition-all shadow-md mt-4">기록 저장하기</button>
                             </form>
                         </div>
+                        {% endif %}
                     </div>
                 </main>
             </aside>
-            <div id="mapContainer" class="flex-1 h-full z-10 bg-slate-100 dark:bg-coffee-root relative">
+            <div id="mapContainer" class="flex-1 h-full z-10 bg-slate-100 dark:bg-coffee-root relative min-h-0">
+                <button type="button" id="btnShowMapSidebarMobile" class="hidden md:hidden absolute top-3 left-3 z-[25] px-4 py-2 rounded-full text-sm font-semibold bg-white/95 dark:bg-coffee-panel/95 text-slate-800 dark:text-coffee-accent border border-slate-200 dark:border-coffee-border shadow-lg backdrop-blur-sm">글 목록</button>
                 <div id="map" class="w-full h-full"></div>
             </div>
         </div>
@@ -221,14 +247,14 @@
 
         <!-- 4. COFFEE WIKI VIEW -->
         <div id="view-wiki" class="flex-1 flex flex-col w-full h-full hidden bg-slate-50 dark:bg-coffee-root p-8 overflow-y-auto custom-scrollbar">
-            <header class="max-w-4xl mx-auto w-full mb-8 flex items-center justify-between">
-                <div>
+            <header class="max-w-4xl mx-auto w-full mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="min-w-0">
                     <h1 class="text-4xl font-serif font-bold text-slate-800 dark:text-coffee-accent">Coffee Wiki</h1>
                     <p class="text-slate-500 dark:text-coffee-muted mt-2">커피 용어와 지식 저장소</p>
                 </div>
-                <button id="btnWriteWiki" class="hidden px-5 py-2.5 bg-coffee-btn hover:bg-coffee-btnHover text-white rounded-xl shadow-lg transition-all flex items-center gap-2 font-medium">
+                <button id="btnWriteWiki" class="hidden px-5 py-2.5 bg-coffee-btn hover:bg-coffee-btnHover text-white rounded-xl shadow-lg transition-all flex items-center gap-2 font-medium shrink-0">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                    지식 등록하기
+                    글쓰기
                 </button>
             </header>
             
@@ -253,14 +279,7 @@
             <h2 class="text-3xl font-serif font-bold text-coffee-accent mb-8 border-b border-coffee-border pb-4">관리자 환경 설정</h2>
             
             <div class="space-y-12">
-                <!-- 1. WebAuthn (FaceID) -->
-                <section>
-                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg> 생체 인증 (FaceID/TouchID)</h3>
-                    <p class="text-sm text-coffee-muted mb-4">현재 접속 중인 브라우저를 패스워드리스 로그인 기기로 등록합니다.</p>
-                    <button onclick="registerWebAuthnDevice()" class="inline-flex items-center px-6 py-2 bg-coffee-btn hover:bg-coffee-btnHover text-white rounded-xl shadow-md transition-colors font-medium">새 기기 등록하기</button>
-                </section>
-
-                <!-- 2. OTP (Google Authenticator) -->
+                <!-- 1. OTP (Google Authenticator) -->
                 <section>
                     <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> OTP 2단계 인증 설정</h3>
                     <p class="text-sm text-coffee-muted mb-6">Google Authenticator 등 OTP 앱을 사용하여 외부망에서도 안전하게 로그인하세요.</p>
@@ -275,7 +294,7 @@
                     <button id="btnShowOTPSetup" class="inline-flex items-center px-6 py-2 bg-coffee-card hover:bg-coffee-border text-coffee-accent rounded-xl border border-coffee-border transition-colors font-medium">OTP 설정 시작</button>
                 </section>
 
-                <!-- 3. DeviceID (Whitelist) -->
+                <!-- 2. DeviceID (Whitelist) -->
                 <section>
                     <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg> 고정 기기 Whitelist 등록</h3>
                     <p class="text-sm text-coffee-muted mb-4">현재 브라우저를 '신뢰할 수 있는 기기'로 영구 등록합니다. (외부망에서도 자동 Admin 접속)</p>
@@ -296,7 +315,7 @@
                     </div>
                 </section>
 
-                <!-- 4. Read-only Switch (Logout) -->
+                <!-- 3. Read-only Switch (Logout) -->
                 <section class="pt-8 border-t border-coffee-border">
                     <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-red-400"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg> 읽기 모드로 전환</h3>
                     <p class="text-sm text-coffee-muted mb-6">현재 관리자 세션을 종료하고 누구나 볼 수 있는 게스트(읽기 전용) 모드로 돌아갑니다.</p>
@@ -306,21 +325,27 @@
         </div>
     </div>
 
-    <!-- Auth / Biometrics Modal -->
+    <!-- Auth Modal (OTP) -->
     <div id="authModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-coffee-root/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
         <div class="bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center transform scale-95 transition-transform duration-300 relative">
             <h3 class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent mb-2">프라이빗 모드</h3>
-            <p class="text-sm text-slate-500 dark:text-coffee-muted mb-6">Admin 권한이 필요합니다.</p>
+            <p class="text-sm text-slate-500 dark:text-coffee-muted mb-6">등록된 기기이거나 OTP로 관리자 로그인할 수 있습니다.</p>
             <div class="space-y-3">
-                <button id="btnWebAuthnLogin" class="w-full py-3 rounded-xl text-white bg-coffee-btn hover:bg-coffee-btnHover font-medium transition-colors shadow-lg flex items-center justify-center gap-2">생체 인증</button>
-                <div class="py-2 flex items-center gap-2 text-xs text-slate-400 dark:text-coffee-muted"><hr class="flex-1 border-slate-200 dark:border-coffee-border"> OR <hr class="flex-1 border-slate-200 dark:border-coffee-border"></div>
                 <div class="flex gap-2">
                     <input type="text" id="loginOTPCode" maxlength="6" placeholder="OTP 6자리" class="flex-1 px-3 py-2 rounded-lg bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-center font-bold">
-                    <button id="btnLoginOTP" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">확인</button>
+                    <button id="btnLoginOTP" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm shrink-0">확인</button>
                 </div>
             </div>
             <button id="btnCancelAuth" class="mt-6 text-sm text-slate-400 dark:text-coffee-muted hover:text-coffee-btn font-medium">취소 (Guest 모드)</button>
         </div>
+    </div>
+
+    <!-- 후기 이미지 확대 -->
+    <div id="reviewImageLightbox" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/85 backdrop-blur-sm p-4 cursor-zoom-out" aria-hidden="true">
+        <button type="button" id="reviewImageLightboxClose" class="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer" aria-label="닫기">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <img id="reviewImageLightboxImg" src="" alt="" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl select-none pointer-events-none">
     </div>
 
     <!-- Storage Confirmation Modal -->
@@ -362,9 +387,9 @@
     <script>const USER_ROLE = "{{ user_role }}";</script>
     <script src="/static/js/http.js?v=8"></script>
     <script src="/static/js/map-core.js?v=10"></script>
-    <script src="/static/js/store-map.js?v=10"></script>
+    <script src="/static/js/store-map.js?v=11"></script>
     <script src="/static/js/wiki.js?v=1"></script>
-    <script src="/static/js/auth.js?v=1"></script>
-    <script src="/static/js/app.js?v=48"></script>
+    <script src="/static/js/auth.js?v=2"></script>
+    <script src="/static/js/app.js?v=49"></script>
 </body>
 </html>

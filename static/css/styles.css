@@ -46,17 +46,8 @@ body {
   box-shadow: 0 10px 20px -5px rgba(140, 107, 93, 0.15);
 }
 
-/* Leaflet Customizations - Light mode: vintage paper tone */
-html:not(.dark) .leaflet-tile-pane {
-  filter: sepia(0.20) hue-rotate(-5deg) contrast(1.05) saturate(1.05) brightness(0.95);
-  transition: filter var(--transition-speed);
-}
-
-/* Leaflet Customizations - Dark mode: warm coffee-brown, high brightness for readability */
-html.dark .leaflet-tile-pane {
-  filter: sepia(0.4) hue-rotate(-12deg) brightness(1.15) contrast(0.95) saturate(1.3) !important;
-  transition: filter var(--transition-speed);
-}
+/* Leaflet 타일 전역 필터는 호선(색상) 표현을 뭉개는 원인이 됩니다.
+   subwayOverlay(OpenRailwayMap)까지 같은 필터를 받기 때문에, 전역 필터를 제거합니다. */
 
 .leaflet-control-zoom-in,
 .leaflet-control-zoom-out,
@@ -161,4 +152,39 @@ html.dark .premium-card p {
   transform: rotateY(180deg);
   position: absolute;
   top: 0; left: 0;
+}
+
+/* 모바일: Map 사이드바 숨김(지도만 보기) */
+@media (max-width: 767px) {
+  #sidebar.map-sidebar-mobile-hidden {
+    transform: translateX(-100%);
+    pointer-events: none;
+  }
+}
+
+/* 모바일: "글 목록" 버튼이 Leaflet 레이어에 가려지지 않게 최우선 표시 */
+@media (max-width: 767px) {
+  #btnShowMapSidebarMobile {
+    position: absolute !important;
+    z-index: 100000 !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+  }
+  /* Leaflet map panes가 버튼 위로 올라오는 경우를 방지 */
+  #map {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/* 모바일 하단 네비: 스크롤 방향에 따라 숨김 */
+@media (max-width: 767px) {
+  #app-bottom-nav {
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  }
+  #app-bottom-nav.nav-mobile-collapsed {
+    transform: translateY(calc(100% + 12px));
+    opacity: 0.92;
+    pointer-events: none;
+  }
 }

@@ -1,21 +1,5 @@
 let tempOTPSecret = "";
 
-function bufferToBase64URLStringAuth(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let str = '';
-    for (let charCode of bytes) { str += String.fromCharCode(charCode); }
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-function base64URLStringToBufferAuth(base64URLString) {
-    const base64 = base64URLString.replace(/-/g, '+').replace(/_/g, '/');
-    const padLen = (4 - (base64.length % 4)) % 4;
-    const binary = atob(base64 + '='.repeat(padLen));
-    const bytes = new Uint8Array(new ArrayBuffer(binary.length));
-    for (let i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
-    return bytes.buffer;
-}
-
 window.requireAdminAccess = function(callback) {
     if (typeof USER_ROLE !== 'undefined' && USER_ROLE !== 'admin') {
         const modal = document.getElementById('authModal');
@@ -37,27 +21,6 @@ window.attemptWhitelistLogin = async function() {
             modal.classList.remove('hidden');
             setTimeout(() => modal.classList.remove('opacity-0'), 10);
         }
-    }
-};
-
-window.registerWebAuthnDevice = async function() {
-    try {
-        const opt = await window.fetchJson('/api/auth/register/generate');
-        opt.publicKey.challenge = base64URLStringToBufferAuth(opt.publicKey.challenge);
-        opt.publicKey.user.id = base64URLStringToBufferAuth(opt.publicKey.user.id);
-        const cred = await navigator.credentials.create(opt);
-        await window.postJson('/api/auth/register/verify', {
-            id: cred.id,
-            rawId: bufferToBase64URLStringAuth(cred.rawId),
-            type: cred.type,
-            response: {
-                attestationObject: bufferToBase64URLStringAuth(cred.response.attestationObject),
-                clientDataJSON: bufferToBase64URLStringAuth(cred.response.clientDataJSON)
-            }
-        });
-        alert("생체 인증 등록 성공!");
-    } catch (e) {
-        alert("에러: " + e.message);
     }
 };
 
@@ -207,37 +170,6 @@ window.setupAuthAndSettings = function() {
                 location.reload();
             } catch (_) {
                 alert("잘못된 코드입니다.");
-            }
-        };
-    }
-
-    const webauthnLoginBtn = document.getElementById('btnWebAuthnLogin');
-    if (webauthnLoginBtn) {
-        webauthnLoginBtn.onclick = async () => {
-            try {
-                const opt = await window.fetchJson('/api/auth/login/generate');
-                // Support both response shapes:
-                // 1) { publicKey: { ... } } and 2) direct PublicKeyCredentialRequestOptions
-                const publicKey = opt.publicKey ? opt.publicKey : opt;
-                publicKey.challenge = base64URLStringToBufferAuth(publicKey.challenge);
-                if (publicKey.allowCredentials) {
-                    publicKey.allowCredentials.forEach(c => c.id = base64URLStringToBufferAuth(c.id));
-                }
-                const ass = await navigator.credentials.get({ publicKey });
-                await window.postJson('/api/auth/login/verify', {
-                    id: ass.id,
-                    rawId: bufferToBase64URLStringAuth(ass.rawId),
-                    type: ass.type,
-                    response: {
-                        authenticatorData: bufferToBase64URLStringAuth(ass.response.authenticatorData),
-                        clientDataJSON: bufferToBase64URLStringAuth(ass.response.clientDataJSON),
-                        signature: bufferToBase64URLStringAuth(ass.response.signature),
-                        userHandle: ass.response.userHandle ? bufferToBase64URLStringAuth(ass.response.userHandle) : null
-                    }
-                });
-                location.reload();
-            } catch (e) {
-                alert("인증 실패: " + e.message);
             }
         };
     }

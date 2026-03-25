@@ -4,6 +4,70 @@ window.storeMapState = {
     storesCache: [],
     tempMarker: null,
     currentView: 'map',
+    mapSidebarHiddenMobile: false,
+};
+
+function sortStoresForList(stores) {
+    const rank = (wish, hasReviews) => {
+        if (wish && hasReviews) return 0;
+        if (!wish && hasReviews) return 1;
+        if (wish && !hasReviews) return 2;
+        return 3;
+    };
+    return [...stores].sort((a, b) => {
+        const wa = !!a.is_wishlist;
+        const wb = !!b.is_wishlist;
+        const ra = Number(a.reviews_count) > 0;
+        const rb = Number(b.reviews_count) > 0;
+        const da = rank(wa, ra);
+        const db = rank(wb, rb);
+        if (da !== db) return da - db;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'ko');
+    });
+}
+
+window.openReviewImageLightbox = function(src) {
+    if (!src) return;
+    const lb = document.getElementById('reviewImageLightbox');
+    const img = document.getElementById('reviewImageLightboxImg');
+    if (!lb || !img) return;
+    img.src = src;
+    lb.classList.remove('hidden');
+    lb.classList.add('flex');
+    lb.setAttribute('aria-hidden', 'false');
+};
+
+window.closeReviewImageLightbox = function() {
+    const lb = document.getElementById('reviewImageLightbox');
+    const img = document.getElementById('reviewImageLightboxImg');
+    if (!lb) return;
+    lb.classList.add('hidden');
+    lb.classList.remove('flex');
+    lb.setAttribute('aria-hidden', 'true');
+    if (img) img.src = '';
+};
+
+window.setMapSidebarMobileHidden = function(hidden) {
+    const sidebar = document.getElementById('sidebar');
+    const showBtn = document.getElementById('btnShowMapSidebarMobile');
+    const mq = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)');
+    if (!sidebar) return;
+    if (!mq || !mq.matches) {
+        sidebar.classList.remove('map-sidebar-mobile-hidden');
+        window.storeMapState.mapSidebarHiddenMobile = false;
+        if (showBtn) showBtn.classList.add('hidden');
+        return;
+    }
+    window.storeMapState.mapSidebarHiddenMobile = !!hidden;
+    sidebar.classList.toggle('map-sidebar-mobile-hidden', !!hidden);
+    if (showBtn) showBtn.classList.toggle('hidden', !hidden);
+    setTimeout(() => {
+        if (window.mapRef) window.mapRef.invalidateSize();
+    }, 320);
+};
+
+window.toggleMapSidebarMobile = function() {
+    window.setMapSidebarMobileHidden(!window.storeMapState.mapSidebarHiddenMobile);
 };
 
 window.getCurrentStore = function() {
@@ -24,6 +88,13 @@ window.switchView = function(viewName) {
         }
     });
     window.storeMapState.currentView = viewName;
+    if (viewName !== 'map') {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.remove('map-sidebar-mobile-hidden');
+        window.storeMapState.mapSidebarHiddenMobile = false;
+        const showSb = document.getElementById('btnShowMapSidebarMobile');
+        if (showSb) showSb.classList.add('hidden');
+    }
     if (viewName === 'map') {
         setTimeout(() => window.mapRef.invalidateSize(), 100);
     } else if (viewName === 'feed') {
@@ -53,7 +124,7 @@ window.applyStoresFromApi = function(stores) {
         const rc = Number.isFinite(n) ? n : 0;
         return wish || rc > 0;
     });
-    window.storeMapState.storesCache = filtered;
+    window.storeMapState.storesCache = sortStoresForList(filtered);
     renderMarkers();
     renderStoreList();
 };
@@ -185,8 +256,8 @@ window.openStoreDetail = async function(store) {
                 <h4 class="font-bold text-slate-800 dark:text-coffee-accent text-sm mb-2">${escapeHtml(r.bean_name)}</h4>
                 <p class="text-sm text-slate-600 dark:text-coffee-text whitespace-pre-wrap leading-relaxed">${escapeHtml(r.content)}</p>
                 ${(r.front_card_path || r.back_card_path) ? `<div class="mt-4 flex gap-2 h-24">
-                    ${r.front_card_path ? `<img src="${escapeHtml(r.front_card_path)}" alt="" class="h-full rounded-md object-cover border border-slate-200 dark:border-coffee-border">` : ''}
-                    ${r.back_card_path ? `<img src="${escapeHtml(r.back_card_path)}" alt="" class="h-full rounded-md object-cover border border-slate-200 dark:border-coffee-border">` : ''}
+                    ${r.front_card_path ? `<img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb h-full rounded-md object-cover border border-slate-200 dark:border-coffee-border cursor-pointer hover:opacity-90 transition-opacity">` : ''}
+                    ${r.back_card_path ? `<img src="${escapeHtml(r.back_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.back_card_path)}" class="review-lightbox-thumb h-full rounded-md object-cover border border-slate-200 dark:border-coffee-border cursor-pointer hover:opacity-90 transition-opacity">` : ''}
                 </div>` : ''}
                 ${isAdmin ? `<div class="mt-3 flex flex-wrap gap-2">
                     <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-slate-700 dark:text-coffee-text hover:border-coffee-btn transition-colors" onclick="window.startEditReview(${r.id})">수정</button>
@@ -231,6 +302,12 @@ window.openStoreDetail = async function(store) {
     if (reviews.length && isAdmin) {
         reviews.forEach((r) => window.bindEditReviewUploads(r.id));
     }
+    reviewsList.querySelectorAll('.review-lightbox-thumb[data-lightbox-src]').forEach((el) => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.openReviewImageLightbox(el.getAttribute('data-lightbox-src'));
+        });
+    });
 };
 
 window.bindEditReviewUploads = function(reviewId) {
@@ -376,9 +453,17 @@ window.renderFeed = async function() {
                     <span class="text-[10px] uppercase tracking-widest text-slate-400 dark:text-coffee-muted">${r.bean_name}</span>
                 </div>
                 <p class="text-slate-600 dark:text-coffee-text text-sm mb-4 line-clamp-3">${r.content}</p>
-                ${r.front_card_path ? `<img src="${r.front_card_path}" class="w-full h-48 object-cover rounded-2xl border border-slate-100 dark:border-coffee-border">` : ''}
+                ${r.front_card_path ? `<img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb w-full h-48 object-cover rounded-2xl border border-slate-100 dark:border-coffee-border cursor-pointer hover:opacity-90 transition-opacity">` : ''}
             </div>
         `).join('') : '<p class="col-span-full text-center p-20 opacity-50 text-coffee-muted">기록이 없습니다.</p>';
+        if (allReviews.length) {
+            container.querySelectorAll('.review-lightbox-thumb[data-lightbox-src]').forEach((el) => {
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    window.openReviewImageLightbox(el.getAttribute('data-lightbox-src'));
+                });
+            });
+        }
     } catch (_) {
         container.innerHTML = '<div class="col-span-full text-center p-20 text-red-500">데이터 로드 실패</div>';
     }
