@@ -181,6 +181,13 @@ function setupEventListeners() {
         btnYesWish.onclick = () => window.saveNewStoreAndReview(true);
     }
 
+    const feedSearchInput = document.getElementById('feedSearchInput');
+    if (feedSearchInput) {
+        feedSearchInput.addEventListener('input', () => {
+            if (window.storeMapState?.currentView === 'feed') window.renderFeed();
+        });
+    }
+
     window.setupWikiEvents();
 }
 

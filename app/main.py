@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from sqlalchemy import func
+from sqlalchemy import text
 import os
 import json
 import time
@@ -22,7 +23,7 @@ def get_naver_client_id():
 
 from datetime import datetime
 
-from .database import create_db_and_tables, get_session, Store, Review, WikiPost
+from .database import create_db_and_tables, get_session, Store, Review, WikiPost, WikiCategory, engine
 from .utils import search_naver_local, extract_flavor_color
 from .auth import get_current_user, require_admin
 
@@ -81,6 +82,25 @@ def _save_review_image(upload: UploadFile, suffix: str, upload_dir: str, timesta
         buffer.write(data)
     return "/" + file_path
 
+
+def _parse_tags(raw: Optional[str]) -> str:
+    if raw is None:
+        return ""
+    parts = [x.strip().lstrip("#") for x in str(raw).replace("\n", ",").split(",")]
+    uniq = []
+    for p in parts:
+        if not p:
+            continue
+        if p not in uniq:
+            uniq.append(p)
+    return ",".join(uniq)
+
+
+def _tags_to_list(raw: Optional[str]) -> list:
+    if not raw:
+        return []
+    return [x for x in [s.strip() for s in str(raw).split(",")] if x]
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if isinstance(exc.detail, dict):
@@ -97,6 +117,24 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    _ensure_legacy_columns()
+
+
+def _ensure_legacy_columns():
+    """
+    Lightweight migration for existing SQLite files.
+    """
+    try:
+        with engine.begin() as conn:
+            cols = {row[1] for row in conn.execute(text("PRAGMA table_info('review')")).fetchall()}
+            if "tags" not in cols:
+                conn.execute(text("ALTER TABLE review ADD COLUMN tags TEXT"))
+            wiki_cols = {row[1] for row in conn.execute(text("PRAGMA table_info('wikipost')")).fetchall()}
+            if "category_id" not in wiki_cols:
+                conn.execute(text("ALTER TABLE wikipost ADD COLUMN category_id INTEGER"))
+    except Exception:
+        # no-op for non-sqlite / first-boot race
+        pass
 
 @app.get("/")
 def read_root(request: Request, user: dict = Depends(get_current_user)):
@@ -421,6 +459,7 @@ def get_feed(session: Session = Depends(get_session)):
             "store_name": store_name,
             "bean_name": review.bean_name,
             "content": review.content,
+            "tags": _tags_to_list(getattr(review, "tags", "")),
             "front_card_path": review.front_card_path,
             "back_card_path": review.back_card_path
         }
@@ -478,6 +517,7 @@ def create_review(
     store_id: int = Form(...),
     bean_name: str = Form(...),
     content: str = Form(...),
+    tags: Optional[str] = Form(""),
     front_image: UploadFile = File(None),
     back_image: UploadFile = File(None),
     session: Session = Depends(get_session),
@@ -503,6 +543,7 @@ def create_review(
         store_id=store_id,
         bean_name=bean_name,
         content=content,
+        tags=_parse_tags(tags),
         front_card_path=front_path,
         back_card_path=back_path
     )
@@ -519,7 +560,18 @@ def create_review(
 @app.get("/api/stores/{store_id}/reviews")
 def get_store_reviews(store_id: int, session: Session = Depends(get_session)):
     reviews = session.exec(select(Review).where(Review.store_id == store_id)).all()
-    return reviews
+    return [
+        {
+            "id": r.id,
+            "store_id": r.store_id,
+            "bean_name": r.bean_name,
+            "content": r.content,
+            "tags": _tags_to_list(getattr(r, "tags", "")),
+            "front_card_path": r.front_card_path,
+            "back_card_path": r.back_card_path,
+        }
+        for r in reviews
+    ]
 
 
 @app.patch("/api/reviews/{review_id}")
@@ -527,6 +579,7 @@ async def update_review(
     review_id: int,
     bean_name: Optional[str] = Form(None),
     content: Optional[str] = Form(None),
+    tags: Optional[str] = Form(None),
     front_image: UploadFile = File(None),
     back_image: UploadFile = File(None),
     session: Session = Depends(get_session),
@@ -543,6 +596,8 @@ async def update_review(
             review.bean_name = str(bean_name).strip()
         if content is not None and str(content).strip():
             review.content = str(content).strip()
+        if tags is not None:
+            review.tags = _parse_tags(tags)
         if front_image is not None and getattr(front_image, "filename", None):
             _unlink_upload_path(review.front_card_path)
             review.front_card_path = _save_review_image(front_image, "front", upload_dir, timestamp)
@@ -596,14 +651,131 @@ def delete_review(review_id: int, session: Session = Depends(get_session), admin
 
 
 @app.get("/api/wiki")
-def get_wiki_posts(session: Session = Depends(get_session)):
-    return session.exec(select(WikiPost).order_by(WikiPost.created_at.desc())).all()
+def get_wiki_posts(
+    q: Optional[str] = None,
+    category_id: Optional[int] = None,
+    session: Session = Depends(get_session),
+):
+    posts = session.exec(select(WikiPost).order_by(WikiPost.created_at.desc())).all()
+    if category_id is not None:
+        posts = [p for p in posts if int(getattr(p, "category_id", 0) or 0) == int(category_id)]
+    if q:
+        needle = q.strip().lower()
+        posts = [
+            p for p in posts
+            if needle in (p.title or "").lower()
+            or needle in (p.content or "").lower()
+            or needle in (p.category or "").lower()
+        ]
+    return posts
 
 @app.post("/api/wiki")
 async def create_wiki_post(request: Request, session: Session = Depends(get_session), admin=Depends(require_admin)):
     data = await request.json()
+    category_id = data.get("category_id")
+    category_name = data.get("category")
+    if category_id is not None:
+        cat = session.get(WikiCategory, int(category_id))
+        if cat:
+            category_name = cat.name
     new_post = WikiPost(**data)
+    if category_name is not None:
+        new_post.category = str(category_name)
+    if category_id is not None:
+        new_post.category_id = int(category_id)
     session.add(new_post)
     session.commit()
     session.refresh(new_post)
     return new_post
+
+
+@app.patch("/api/wiki/{post_id}")
+async def update_wiki_post(post_id: int, request: Request, session: Session = Depends(get_session), admin=Depends(require_admin)):
+    post = session.get(WikiPost, post_id)
+    if not post:
+        return error_response(404, "WIKI_NOT_FOUND", "Wiki post not found")
+    data = await request.json()
+    if "title" in data and str(data["title"]).strip():
+        post.title = str(data["title"]).strip()
+    if "content" in data and str(data["content"]).strip():
+        post.content = str(data["content"]).strip()
+    if "category_id" in data and data["category_id"] is not None:
+        cat = session.get(WikiCategory, int(data["category_id"]))
+        if cat:
+            post.category_id = cat.id
+            post.category = cat.name
+    elif "category" in data and str(data["category"]).strip():
+        post.category = str(data["category"]).strip()
+    session.add(post)
+    session.commit()
+    session.refresh(post)
+    return post
+
+
+@app.delete("/api/wiki/{post_id}")
+def delete_wiki_post(post_id: int, session: Session = Depends(get_session), admin=Depends(require_admin)):
+    post = session.get(WikiPost, post_id)
+    if not post:
+        return error_response(404, "WIKI_NOT_FOUND", "Wiki post not found")
+    session.delete(post)
+    session.commit()
+    return {"status": "success"}
+
+
+@app.get("/api/wiki/categories")
+def get_wiki_categories(session: Session = Depends(get_session)):
+    rows = session.exec(select(WikiCategory).order_by(WikiCategory.created_at.asc())).all()
+    return rows
+
+
+@app.post("/api/wiki/categories")
+async def create_wiki_category(request: Request, session: Session = Depends(get_session), admin=Depends(require_admin)):
+    data = await request.json()
+    name = str(data.get("name", "")).strip()
+    if not name:
+        return error_response(400, "CATEGORY_NAME_REQUIRED", "Category name is required")
+    parent_id = data.get("parent_id")
+    row = WikiCategory(name=name, parent_id=int(parent_id) if parent_id is not None else None)
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
+
+
+@app.patch("/api/wiki/categories/{category_id}")
+async def update_wiki_category(category_id: int, request: Request, session: Session = Depends(get_session), admin=Depends(require_admin)):
+    row = session.get(WikiCategory, category_id)
+    if not row:
+        return error_response(404, "CATEGORY_NOT_FOUND", "Category not found")
+    data = await request.json()
+    if "name" in data and str(data["name"]).strip():
+        row.name = str(data["name"]).strip()
+        # keep legacy category text in sync
+        posts = session.exec(select(WikiPost).where(WikiPost.category_id == category_id)).all()
+        for p in posts:
+            p.category = row.name
+            session.add(p)
+    if "parent_id" in data:
+        row.parent_id = int(data["parent_id"]) if data["parent_id"] is not None else None
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
+
+
+@app.delete("/api/wiki/categories/{category_id}")
+def delete_wiki_category(category_id: int, session: Session = Depends(get_session), admin=Depends(require_admin)):
+    row = session.get(WikiCategory, category_id)
+    if not row:
+        return error_response(404, "CATEGORY_NOT_FOUND", "Category not found")
+    children = session.exec(select(WikiCategory).where(WikiCategory.parent_id == category_id)).all()
+    if children:
+        return error_response(400, "CATEGORY_HAS_CHILDREN", "Delete child categories first")
+    posts = session.exec(select(WikiPost).where(WikiPost.category_id == category_id)).all()
+    for p in posts:
+        p.category_id = None
+        p.category = "미분류"
+        session.add(p)
+    session.delete(row)
+    session.commit()
+    return {"status": "success"}

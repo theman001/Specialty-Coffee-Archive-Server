@@ -1,5 +1,6 @@
 import os
 import jwt
+import uuid
 from datetime import datetime, timedelta
 from fastapi import Request, HTTPException, Response, APIRouter, Depends
 from fastapi.responses import JSONResponse
@@ -45,6 +46,29 @@ def extract_client_ip(request: Request) -> str:
         return request.client.host
         
     return ""
+
+
+def is_localhost_request(request: Request) -> bool:
+    """
+    Auto-login via whitelist is allowed only for localhost access.
+    Accepts: localhost / 127.0.0.1 / ::1
+    """
+    host_header = (request.headers.get("host") or "").split(":")[0].strip().lower()
+    localhost_set = {"localhost", "127.0.0.1", "::1"}
+    # If Host header exists, trust it first.
+    if host_header:
+        return host_header in localhost_set
+
+    host = ""
+    try:
+        host = (request.url.hostname or "").strip().lower()
+    except Exception:
+        host = ""
+    if host in localhost_set:
+        return True
+
+    client_ip = (extract_client_ip(request) or "").split(",")[0].strip().lower()
+    return client_ip in localhost_set
 
 def create_admin_token() -> str:
     # Long lived token for permanent device login (e.g., 10 years)
@@ -243,6 +267,9 @@ async def logout():
 
 @router.post("/login/whitelist")
 async def login_whitelist(request: Request, response: Response, session: Session = Depends(get_session)):
+    if not is_localhost_request(request):
+        auth_error(403, "LOCALHOST_ONLY", "화이트리스트 자동 로그인은 localhost 접근에서만 허용됩니다.")
+
     if _is_login_limited(request):
         auth_error(429, "AUTH_WHITELIST_LOCKED", f"Too many login attempts. Try again in {LOGIN_ATTEMPT_WINDOW_SECONDS // 60} minutes.")
 
@@ -276,6 +303,36 @@ async def register_device(request: Request, session: Session = Depends(get_sessi
     response = JSONResponse(content={"status": "success"})
     # Also set the cookie for the user immediately if they are on Home network
     response.set_cookie(key="device_id", value=dev_id, **get_cookie_kwargs())
+    return response
+
+
+@router.post("/device/bootstrap-localhost")
+async def bootstrap_localhost_device(request: Request, session: Session = Depends(get_session)):
+    """
+    Localhost-only emergency bootstrap:
+    - Ensure device_id cookie exists
+    - Upsert that device into whitelist
+    - Issue admin token for immediate local recovery
+    """
+    if not is_localhost_request(request):
+        auth_error(403, "LOCALHOST_ONLY", "localhost 접근에서만 허용됩니다.")
+
+    device_id = request.cookies.get("device_id") or request.headers.get("X-Device-Id")
+    if not device_id:
+        device_id = str(uuid.uuid4())
+
+    exists = session.exec(select(AllowedDevice).where(AllowedDevice.device_id == device_id)).first()
+    if exists:
+        exists.description = exists.description or "Temporary Localhost Bootstrap"
+        session.add(exists)
+    else:
+        session.add(AllowedDevice(device_id=device_id, description="Temporary Localhost Bootstrap"))
+    session.commit()
+
+    token = create_admin_token()
+    response = JSONResponse(content={"status": "success", "device_id": device_id, "bootstrapped": True})
+    response.set_cookie(key="device_id", value=device_id, **get_cookie_kwargs())
+    response.set_cookie(key=COOKIE_NAME, value=token, **get_cookie_kwargs())
     return response
 
 @router.get("/device/list")

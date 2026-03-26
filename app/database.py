@@ -23,6 +23,7 @@ class Review(SQLModel, table=True):
     store_id: int = Field(foreign_key="store.id")
     bean_name: str
     content: str
+    tags: Optional[str] = None
     front_card_path: Optional[str] = None
     back_card_path: Optional[str] = None
 
@@ -42,6 +43,14 @@ class WikiPost(SQLModel, table=True):
     title: str = Field(index=True)
     content: str = Field(...)
     category: str = Field(index=True)
+    category_id: Optional[int] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class WikiCategory(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    parent_id: Optional[int] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 def create_db_and_tables():

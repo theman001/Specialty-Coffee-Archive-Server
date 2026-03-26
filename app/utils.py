@@ -2,6 +2,9 @@ from pyproj import Proj, Transformer
 import os
 import requests
 import re
+from urllib.parse import quote
+from pathlib import Path
+from dotenv import load_dotenv
 
 # Naver TM128 Projection String
 naver_tm128 = Proj('+proj=tmerc +lat_0=38 +lon_0=128 +k=0.9999 +x_0=400000 +y_0=600000 +ellps=bessel +units=m +no_defs +towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43')
@@ -10,6 +13,21 @@ wgs84 = Proj(proj='latlong', datum='WGS84')
 transformer = Transformer.from_proj(naver_tm128, wgs84, always_xy=True)
 
 import math
+
+_NAVER_ENV_LOADED = False
+
+
+def _ensure_naver_env_loaded():
+    global _NAVER_ENV_LOADED
+    if _NAVER_ENV_LOADED:
+        return
+    # app/utils.py 기준으로 프로젝트 루트의 .env를 우선 로드
+    root_env = Path(__file__).resolve().parents[1] / ".env"
+    if root_env.exists():
+        load_dotenv(dotenv_path=str(root_env), override=False)
+    # 컨테이너 경로 fallback
+    load_dotenv(dotenv_path="/app/.env", override=False)
+    _NAVER_ENV_LOADED = True
 
 def convert_tm128_to_wgs84(mapx: int, mapy: int):
     """
@@ -42,6 +60,7 @@ def search_naver_local(query: str):
     if '카페' not in query:
         query = f"{query} 카페"
     
+    _ensure_naver_env_loaded()
     client_id = os.getenv('NAVER_CLIENT_ID')
     client_secret = os.getenv('NAVER_CLIENT_SECRET')
     
@@ -69,12 +88,25 @@ def search_naver_local(query: str):
         # 카페 관련 필터: 보통 category 필드에 '음식점>카페,디저트' 같은 값이 들어있음
         if '카페' in item.get('category', ''):
             lat, lng = convert_tm128_to_wgs84(int(item['mapx']), int(item['mapy']))
+            raw_link = item.get("link")
+            naver_map_url = None
+            if isinstance(raw_link, str):
+                link = raw_link.strip()
+                if any(host in link for host in ("map.naver.com", "place.naver.com", "m.place.naver.com", "naver.me")):
+                    naver_map_url = link
+            if not naver_map_url:
+                # 로컬 검색 API가 지도/플레이스 링크를 직접 주지 않는 경우가 있어 검색 URL로 보완
+                q = clean_html_tags(item.get("title", "")).strip()
+                if q:
+                    naver_map_url = f"https://map.naver.com/p/search/{quote(q)}"
+
             fixed_items.append({
                 "title": clean_html_tags(item['title']),
                 "category": item['category'],
                 "roadAddress": item['roadAddress'],
                 "lat": lat,
-                "lng": lng
+                "lng": lng,
+                "naver_map_url": naver_map_url,
             })
             
     return fixed_items

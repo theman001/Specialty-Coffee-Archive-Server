@@ -5,6 +5,7 @@ window.storeMapState = {
     tempMarker: null,
     currentView: 'map',
     mapSidebarHiddenMobile: false,
+    feedCache: [],
 };
 
 function sortStoresForList(stores) {
@@ -212,6 +213,20 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+function buildNaverMapLink(store) {
+    const direct = store && typeof store.naver_map_url === 'string' ? store.naver_map_url.trim() : '';
+    if (direct) return direct;
+    const keyword = encodeURIComponent(String((store && store.name) || '').trim());
+    if (!keyword) return '';
+    return `https://map.naver.com/p/search/${keyword}`;
+}
+
+function renderTagChips(tags) {
+    const arr = Array.isArray(tags) ? tags.filter(Boolean) : [];
+    if (!arr.length) return '';
+    return `<div class="mt-2 flex flex-wrap gap-1">${arr.map((t) => `<span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-200 dark:bg-coffee-panel text-slate-700 dark:text-coffee-accent">#${escapeHtml(t)}</span>`).join('')}</div>`;
+}
+
 window.openStoreDetail = async function(store) {
     let s = store;
     if (store && store.id !== 'temp') {
@@ -236,6 +251,17 @@ window.openStoreDetail = async function(store) {
     document.getElementById('storeDetailContainer').classList.remove('hidden');
     document.getElementById('detailStoreName').innerText = store.name;
     document.getElementById('detailStoreAddress').innerText = store.address;
+    const mapLinkEl = document.getElementById('detailNaverMapLink');
+    if (mapLinkEl) {
+        const href = buildNaverMapLink(store);
+        if (href) {
+            mapLinkEl.href = href;
+            mapLinkEl.classList.remove('hidden');
+        } else {
+            mapLinkEl.removeAttribute('href');
+            mapLinkEl.classList.add('hidden');
+        }
+    }
     document.getElementById('detailWishlistIcon').setAttribute('fill', store.is_wishlist ? 'currentColor' : 'none');
 
     const reviewsList = document.getElementById('reviewsList');
@@ -254,6 +280,7 @@ window.openStoreDetail = async function(store) {
              data-back="${r.back_card_path ? escapeHtml(r.back_card_path) : ''}">
             <div class="review-view-${r.id}">
                 <h4 class="font-bold text-slate-800 dark:text-coffee-accent text-sm mb-2">${escapeHtml(r.bean_name)}</h4>
+                ${renderTagChips(r.tags)}
                 <p class="text-sm text-slate-600 dark:text-coffee-text whitespace-pre-wrap leading-relaxed">${escapeHtml(r.content)}</p>
                 ${(r.front_card_path || r.back_card_path) ? `<div class="mt-4 flex gap-2 h-24">
                     ${r.front_card_path ? `<img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb h-full rounded-md object-cover border border-slate-200 dark:border-coffee-border cursor-pointer hover:opacity-90 transition-opacity">` : ''}
@@ -272,6 +299,10 @@ window.openStoreDetail = async function(store) {
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">테이스팅 노트</label>
                     <textarea id="edit-content-${r.id}" rows="4" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm resize-none">${escapeHtml(r.content)}</textarea>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">태그 (쉼표 구분)</label>
+                    <input id="edit-tags-${r.id}" type="text" value="${escapeHtml((r.tags || []).join(', '))}" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm">
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="space-y-2">
@@ -390,6 +421,7 @@ window.saveEditReview = async function(reviewId, storeId) {
         const fd = new FormData();
         fd.append('bean_name', document.getElementById(`edit-bean-${reviewId}`).value);
         fd.append('content', document.getElementById(`edit-content-${reviewId}`).value);
+        fd.append('tags', document.getElementById(`edit-tags-${reviewId}`).value);
         const ff = document.getElementById(`edit-front-${reviewId}`);
         const bf = document.getElementById(`edit-back-${reviewId}`);
         if (ff && ff.files[0]) fd.append('front_image', ff.files[0]);
@@ -446,17 +478,24 @@ window.renderFeed = async function() {
     container.innerHTML = '<div class="col-span-full text-center p-20 opacity-50">로딩 중...</div>';
     try {
         const allReviews = await window.fetchJson('/api/feed');
-        container.innerHTML = allReviews.length ? allReviews.map(r => `
+        window.storeMapState.feedCache = allReviews;
+        const needle = (document.getElementById('feedSearchInput')?.value || '').trim().toLowerCase();
+        const filtered = !needle ? allReviews : allReviews.filter((r) => {
+            const tags = Array.isArray(r.tags) ? r.tags.join(' ') : '';
+            return [r.store_name, r.bean_name, r.content, tags].some((x) => String(x || '').toLowerCase().includes(needle));
+        });
+        container.innerHTML = filtered.length ? filtered.map(r => `
             <div class="bg-white dark:bg-coffee-panel p-6 rounded-3xl border border-slate-200 dark:border-coffee-border shadow-xl hover:scale-[1.02] transition-transform cursor-pointer" onclick="openStoreByID(${r.store_id})">
                 <div class="flex justify-between items-start mb-4">
                     <h3 class="font-serif font-bold text-xl text-coffee-btn dark:text-coffee-accent">${r.store_name}</h3>
                     <span class="text-[10px] uppercase tracking-widest text-slate-400 dark:text-coffee-muted">${r.bean_name}</span>
                 </div>
+                ${renderTagChips(r.tags)}
                 <p class="text-slate-600 dark:text-coffee-text text-sm mb-4 line-clamp-3">${r.content}</p>
                 ${r.front_card_path ? `<img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb w-full h-48 object-cover rounded-2xl border border-slate-100 dark:border-coffee-border cursor-pointer hover:opacity-90 transition-opacity">` : ''}
             </div>
-        `).join('') : '<p class="col-span-full text-center p-20 opacity-50 text-coffee-muted">기록이 없습니다.</p>';
-        if (allReviews.length) {
+        `).join('') : '<p class="col-span-full text-center p-20 opacity-50 text-coffee-muted">검색 결과가 없습니다.</p>';
+        if (filtered.length) {
             container.querySelectorAll('.review-lightbox-thumb[data-lightbox-src]').forEach((el) => {
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -633,6 +672,7 @@ window.submitReview = async function(sid) {
     fd.append('store_id', sid);
     fd.append('bean_name', document.getElementById('beanName').value);
     fd.append('content', document.getElementById('reviewContent').value);
+    fd.append('tags', document.getElementById('reviewTags')?.value || '');
     const front = document.getElementById('frontImage');
     const back = document.getElementById('backImage');
     if (front && front.files[0]) fd.append('front_image', front.files[0]);
