@@ -27,15 +27,56 @@ function sortStoresForList(stores) {
     });
 }
 
-window.openReviewImageLightbox = function(src) {
+window._reviewLightboxGallery = [];
+window._reviewLightboxIndex = 0;
+
+function reviewLightboxUpdateSlide() {
+    const urls = window._reviewLightboxGallery || [];
+    const i = Math.min(Math.max(0, window._reviewLightboxIndex || 0), Math.max(0, urls.length - 1));
+    window._reviewLightboxIndex = i;
+    const imgEl = document.getElementById('reviewImageLightboxImg');
+    const prev = document.getElementById('reviewImageLightboxPrev');
+    const next = document.getElementById('reviewImageLightboxNext');
+    if (imgEl && urls.length) imgEl.src = urls[i] || '';
+    const multi = urls.length > 1;
+    [prev, next].forEach((btn) => {
+        if (!btn) return;
+        btn.classList.toggle('hidden', !multi);
+        btn.setAttribute('aria-hidden', multi ? 'false' : 'true');
+    });
+}
+
+window.openReviewImageLightbox = function(src, galleryUrls) {
     if (!src) return;
     const lb = document.getElementById('reviewImageLightbox');
-    const img = document.getElementById('reviewImageLightboxImg');
-    if (!lb || !img) return;
-    img.src = src;
+    const imgEl = document.getElementById('reviewImageLightboxImg');
+    if (!lb || !imgEl) return;
+    let urls = Array.isArray(galleryUrls) && galleryUrls.length
+        ? [...new Set(galleryUrls.filter(Boolean))]
+        : [src];
+    if (!urls.length) urls = [src];
+    window._reviewLightboxGallery = urls;
+    let idx = urls.indexOf(src);
+    if (idx < 0) idx = 0;
+    window._reviewLightboxIndex = idx;
+    reviewLightboxUpdateSlide();
     lb.classList.remove('hidden');
     lb.classList.add('flex');
     lb.setAttribute('aria-hidden', 'false');
+};
+
+window.reviewLightboxPrev = function() {
+    const g = window._reviewLightboxGallery;
+    if (!g || g.length < 2) return;
+    window._reviewLightboxIndex = (window._reviewLightboxIndex - 1 + g.length) % g.length;
+    reviewLightboxUpdateSlide();
+};
+
+window.reviewLightboxNext = function() {
+    const g = window._reviewLightboxGallery;
+    if (!g || g.length < 2) return;
+    window._reviewLightboxIndex = (window._reviewLightboxIndex + 1) % g.length;
+    reviewLightboxUpdateSlide();
 };
 
 window.closeReviewImageLightbox = function() {
@@ -46,6 +87,8 @@ window.closeReviewImageLightbox = function() {
     lb.classList.remove('flex');
     lb.setAttribute('aria-hidden', 'true');
     if (img) img.src = '';
+    window._reviewLightboxGallery = [];
+    window._reviewLightboxIndex = 0;
 };
 
 window.setMapSidebarMobileHidden = function(hidden) {
@@ -227,6 +270,77 @@ function renderTagChips(tags) {
     return `<div class="mt-2 flex flex-wrap gap-1">${arr.map((t) => `<span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-200 dark:bg-coffee-panel text-slate-700 dark:text-coffee-accent">#${escapeHtml(t)}</span>`).join('')}</div>`;
 }
 
+/** 가로/세로 비율(너비÷높이)이 이보다 크면 프레임을 1.3:1로 제한하고 좌우만 크롭. 그 외(정사각~약간 가로, 세로형)는 원본 비율 전체 노출(contain). */
+const REVIEW_THUMB_MAX_LANDSCAPE_AR = 1.3;
+
+function applyReviewThumbLayout(img) {
+    if (!img || !img.classList || !img.classList.contains('review-lightbox-thumb')) return;
+    const slot = img.closest('.review-thumb-slot, .review-thumb-feed-slot');
+    if (!slot) return;
+
+    const apply = () => {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        if (!w || !h) return;
+        slot.classList.remove('review-thumb-slot--crop');
+        const ar = w / h;
+        if (ar > REVIEW_THUMB_MAX_LANDSCAPE_AR) {
+            slot.style.aspectRatio = '1.3 / 1';
+            slot.classList.add('review-thumb-slot--crop');
+        } else {
+            slot.style.aspectRatio = `${w} / ${h}`;
+        }
+    };
+
+    if (img.complete && img.naturalWidth > 0) {
+        apply();
+    } else {
+        img.addEventListener('load', apply, { once: true });
+        img.addEventListener('error', () => {
+            slot.style.aspectRatio = '';
+            slot.classList.remove('review-thumb-slot--crop');
+        }, { once: true });
+    }
+}
+
+function initReviewThumbLayouts(root) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll('img.review-lightbox-thumb').forEach(applyReviewThumbLayout);
+}
+
+function bindReviewLightboxThumbClick(img) {
+    img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const src = img.getAttribute('data-lightbox-src');
+        const inner = img.closest('.review-thumbs-inner');
+        let gallery = null;
+        if (inner) {
+            const raw = inner.getAttribute('data-review-lightbox-gallery');
+            if (raw) {
+                try {
+                    gallery = JSON.parse(decodeURIComponent(raw));
+                } catch (_) {}
+            }
+        }
+        window.openReviewImageLightbox(src, Array.isArray(gallery) && gallery.length ? gallery : null);
+    });
+}
+
+function renderReviewThumbsRow(r) {
+    const urls = [r.front_card_path, r.back_card_path].filter(Boolean);
+    if (!urls.length) return '';
+    const gAttr = urls.length >= 2
+        ? ` data-review-lightbox-gallery="${encodeURIComponent(JSON.stringify(urls))}"`
+        : '';
+    return `
+        <div class="review-thumbs-scroll mt-4 w-full min-w-0 max-md:-mx-4 max-md:px-4 max-md:overflow-x-auto max-md:custom-scrollbar">
+            <div class="review-thumbs-inner flex w-full min-w-0 gap-2 items-start"${gAttr}>
+                ${r.front_card_path ? `<div class="review-thumb-slot rounded-md border border-slate-200 dark:border-coffee-border"><img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb hover:opacity-90 transition-opacity"></div>` : ''}
+                ${r.back_card_path ? `<div class="review-thumb-slot rounded-md border border-slate-200 dark:border-coffee-border"><img src="${escapeHtml(r.back_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.back_card_path)}" class="review-lightbox-thumb hover:opacity-90 transition-opacity"></div>` : ''}
+            </div>
+        </div>`;
+}
+
 window.openStoreDetail = async function(store) {
     let s = store;
     if (store && store.id !== 'temp') {
@@ -274,7 +388,7 @@ window.openStoreDetail = async function(store) {
     const isAdmin = typeof USER_ROLE !== 'undefined' && USER_ROLE === 'admin';
     const dropSvg = `<svg class="w-6 h-6 text-slate-300 dark:text-coffee-border group-hover:text-coffee-btn transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>`;
     reviewsList.innerHTML = reviews.length ? reviews.map(r => `
-        <div class="bg-slate-100 dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-white/10"
+        <div class="bg-slate-100 dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-white/10 min-w-0"
              data-review-id="${r.id}"
              data-front="${r.front_card_path ? escapeHtml(r.front_card_path) : ''}"
              data-back="${r.back_card_path ? escapeHtml(r.back_card_path) : ''}">
@@ -282,10 +396,7 @@ window.openStoreDetail = async function(store) {
                 <h4 class="font-bold text-slate-800 dark:text-coffee-accent text-sm mb-2">${escapeHtml(r.bean_name)}</h4>
                 ${renderTagChips(r.tags)}
                 <p class="text-sm text-slate-600 dark:text-coffee-text whitespace-pre-wrap leading-relaxed">${escapeHtml(r.content)}</p>
-                ${(r.front_card_path || r.back_card_path) ? `<div class="mt-4 flex gap-2 h-24">
-                    ${r.front_card_path ? `<img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb h-full rounded-md object-cover border border-slate-200 dark:border-coffee-border cursor-pointer hover:opacity-90 transition-opacity">` : ''}
-                    ${r.back_card_path ? `<img src="${escapeHtml(r.back_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.back_card_path)}" class="review-lightbox-thumb h-full rounded-md object-cover border border-slate-200 dark:border-coffee-border cursor-pointer hover:opacity-90 transition-opacity">` : ''}
-                </div>` : ''}
+                ${renderReviewThumbsRow(r)}
                 ${isAdmin ? `<div class="mt-3 flex flex-wrap gap-2">
                     <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-slate-700 dark:text-coffee-text hover:border-coffee-btn transition-colors" onclick="window.startEditReview(${r.id})">수정</button>
                     <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors" onclick="window.deleteReview(${r.id}, ${store.id})">삭제</button>
@@ -333,12 +444,8 @@ window.openStoreDetail = async function(store) {
     if (reviews.length && isAdmin) {
         reviews.forEach((r) => window.bindEditReviewUploads(r.id));
     }
-    reviewsList.querySelectorAll('.review-lightbox-thumb[data-lightbox-src]').forEach((el) => {
-        el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            window.openReviewImageLightbox(el.getAttribute('data-lightbox-src'));
-        });
-    });
+    initReviewThumbLayouts(reviewsList);
+    reviewsList.querySelectorAll('.review-lightbox-thumb[data-lightbox-src]').forEach(bindReviewLightboxThumbClick);
 };
 
 window.bindEditReviewUploads = function(reviewId) {
@@ -492,16 +599,12 @@ window.renderFeed = async function() {
                 </div>
                 ${renderTagChips(r.tags)}
                 <p class="text-slate-600 dark:text-coffee-text text-sm mb-4 line-clamp-3">${r.content}</p>
-                ${r.front_card_path ? `<img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb w-full h-48 object-cover rounded-2xl border border-slate-100 dark:border-coffee-border cursor-pointer hover:opacity-90 transition-opacity">` : ''}
+                ${r.front_card_path ? `<div class="review-thumb-feed-outer max-md:-mx-2 max-md:px-2 max-md:overflow-x-auto max-md:custom-scrollbar"><div class="review-thumb-feed-slot mb-0 rounded-2xl border border-slate-100 dark:border-coffee-border"><img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb cursor-pointer hover:opacity-90 transition-opacity"></div></div>` : ''}
             </div>
         `).join('') : '<p class="col-span-full text-center p-20 opacity-50 text-coffee-muted">검색 결과가 없습니다.</p>';
+        initReviewThumbLayouts(container);
         if (filtered.length) {
-            container.querySelectorAll('.review-lightbox-thumb[data-lightbox-src]').forEach((el) => {
-                el.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    window.openReviewImageLightbox(el.getAttribute('data-lightbox-src'));
-                });
-            });
+            container.querySelectorAll('.review-lightbox-thumb[data-lightbox-src]').forEach(bindReviewLightboxThumbClick);
         }
     } catch (_) {
         container.innerHTML = '<div class="col-span-full text-center p-20 text-red-500">데이터 로드 실패</div>';

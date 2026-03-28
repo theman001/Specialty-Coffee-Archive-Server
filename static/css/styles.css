@@ -37,6 +37,87 @@ body {
   scrollbar-color: #8c5c4a transparent;
 }
 
+/* Tasting Notes 썸네일: 원본 비율(aspect-ratio)로 1:1~가로 1.3:1까지 contain, 그보다 가로로 긴 사진만 1.3:1 프레임에서 좌우 크롭 */
+.review-thumb-slot,
+.review-thumb-feed-slot {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.review-thumb-slot > .review-lightbox-thumb,
+.review-thumb-feed-slot > .review-lightbox-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.review-thumb-slot.review-thumb-slot--crop > .review-lightbox-thumb,
+.review-thumb-feed-slot.review-thumb-slot--crop > .review-lightbox-thumb {
+  object-fit: cover;
+}
+
+/* 데스크톱: 상세 2열 — 슬롯이 열 너비에 맞춤 */
+@media (min-width: 768px) {
+  .review-thumbs-inner {
+    width: 100%;
+  }
+
+  .review-thumbs-inner .review-thumb-slot {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .review-thumb-feed-slot {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* 모바일: 고정 높이 기준으로 가로폭 산출 → 넓은 2장은 가로 스크롤 */
+@media (max-width: 767px) {
+  .review-thumbs-inner {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    width: max-content;
+    max-width: none;
+    min-width: 100%;
+  }
+
+  .review-thumbs-inner .review-thumb-slot {
+    height: 8rem;
+    width: auto;
+    flex: 0 0 auto;
+    max-width: none;
+  }
+
+  .review-thumb-feed-outer .review-thumb-feed-slot {
+    height: 8rem;
+    width: auto;
+    flex: 0 0 auto;
+    max-width: none;
+  }
+
+  .review-thumb-feed-outer {
+    display: block;
+    width: 100%;
+  }
+}
+
+@media (min-width: 768px) {
+  .review-thumb-feed-outer .review-thumb-feed-slot {
+    height: auto;
+    width: 100%;
+  }
+}
+
 /* Premium card hover fx */
 .premium-card {
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -179,6 +260,15 @@ html.dark .premium-card p {
 
 /* 모바일 하단 네비: 스크롤 방향에 따라 숨김 */
 @media (max-width: 767px) {
+  /* 고정 네비 높이만큼 본문 하단 여백 — 네비가 translate로 숨겨질 때는 패딩도 제거해 빈 영역이 남지 않게 함 */
+  #view-container {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+    transition: padding-bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  body.mobile-nav-collapsed #view-container {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   #app-bottom-nav {
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
   }

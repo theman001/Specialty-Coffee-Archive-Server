@@ -39,7 +39,7 @@
         }
     </script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/styles.css?v=26" />
+    <link rel="stylesheet" href="/static/css/styles.css?v=30" />
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
@@ -127,7 +127,7 @@
     </nav>
 
     <!-- Content Containers (View Switching) -->
-    <div id="view-container" class="flex-1 flex overflow-hidden w-full relative h-[calc(100vh-64px)] max-md:pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:h-screen md:pb-0">
+    <div id="view-container" class="flex-1 flex overflow-hidden w-full relative h-[calc(100vh-64px)] md:h-screen md:pb-0">
         
         <!-- 1. MAP VIEW -->
         <div id="view-map" class="flex-1 flex flex-col md:flex-row w-full h-full relative">
@@ -383,11 +383,17 @@
     </div>
 
     <!-- 후기 이미지 확대 -->
-    <div id="reviewImageLightbox" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/85 backdrop-blur-sm p-4 cursor-zoom-out" aria-hidden="true">
-        <button type="button" id="reviewImageLightboxClose" class="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer" aria-label="닫기">
+    <div id="reviewImageLightbox" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/85 backdrop-blur-sm p-4 cursor-zoom-out touch-pan-y" aria-hidden="true">
+        <button type="button" id="reviewImageLightboxClose" class="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer" aria-label="닫기">
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
-        <img id="reviewImageLightboxImg" src="" alt="" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl select-none pointer-events-none">
+        <button type="button" id="reviewImageLightboxPrev" class="hidden absolute left-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer" aria-label="이전 사진">
+            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+        </button>
+        <button type="button" id="reviewImageLightboxNext" class="hidden absolute right-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer" aria-label="다음 사진">
+            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        </button>
+        <img id="reviewImageLightboxImg" src="" alt="" class="relative z-[5] max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl select-none pointer-events-none">
     </div>
 
     <!-- Storage Confirmation Modal -->
@@ -429,9 +435,9 @@
     <script>const USER_ROLE = "{{ user_role }}";</script>
     <script src="/static/js/http.js?v=8"></script>
     <script src="/static/js/map-core.js?v=10"></script>
-    <script src="/static/js/store-map.js?v=11"></script>
+    <script src="/static/js/store-map.js?v=15"></script>
     <script src="/static/js/wiki.js?v=1"></script>
     <script src="/static/js/auth.js?v=2"></script>
-    <script src="/static/js/app.js?v=49"></script>
+    <script src="/static/js/app.js?v=51"></script>
 </body>
 </html>

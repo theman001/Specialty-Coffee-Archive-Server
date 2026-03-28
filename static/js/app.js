@@ -27,20 +27,56 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupReviewImageLightboxUi() {
     const lb = document.getElementById('reviewImageLightbox');
     const closeBtn = document.getElementById('reviewImageLightboxClose');
+    const prevBtn = document.getElementById('reviewImageLightboxPrev');
+    const nextBtn = document.getElementById('reviewImageLightboxNext');
     if (closeBtn) {
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             window.closeReviewImageLightbox();
         });
     }
+    if (prevBtn) {
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.reviewLightboxPrev();
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.reviewLightboxNext();
+        });
+    }
     if (lb) {
         lb.addEventListener('click', (e) => {
             if (e.target === lb) window.closeReviewImageLightbox();
         });
+        let touchStartX = 0;
+        lb.addEventListener('touchstart', (e) => {
+            if (!e.changedTouches || !e.changedTouches.length) return;
+            touchStartX = e.changedTouches[0].clientX;
+        }, { passive: true });
+        lb.addEventListener('touchend', (e) => {
+            if (!e.changedTouches || !e.changedTouches.length) return;
+            if (!window._reviewLightboxGallery || window._reviewLightboxGallery.length < 2) return;
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            if (Math.abs(dx) < 48) return;
+            if (dx > 0) window.reviewLightboxPrev();
+            else window.reviewLightboxNext();
+        }, { passive: true });
     }
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && lb && !lb.classList.contains('hidden')) {
+        if (!lb || lb.classList.contains('hidden')) return;
+        if (e.key === 'Escape') {
             window.closeReviewImageLightbox();
+            return;
+        }
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            window.reviewLightboxPrev();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            window.reviewLightboxNext();
         }
     });
 }
@@ -50,8 +86,12 @@ function setupMobileBottomNavScrollHide() {
     if (!nav || typeof window.matchMedia !== 'function') return;
     const mq = window.matchMedia('(max-width: 767px)');
     let lastY = 0;
-    let ticking = false;
     const threshold = 14;
+
+    const syncNavCollapsedClass = (collapsed) => {
+        nav.classList.toggle('nav-mobile-collapsed', collapsed);
+        document.body.classList.toggle('mobile-nav-collapsed', collapsed);
+    };
 
     const scrollRoots = () => {
         const ids = ['sidebarContent', 'view-feed', 'view-wiki'];
@@ -62,9 +102,9 @@ function setupMobileBottomNavScrollHide() {
         if (!mq.matches) return;
         const y = e.target.scrollTop ?? 0;
         const dy = y - lastY;
-        if (y < 12) nav.classList.remove('nav-mobile-collapsed');
-        else if (dy > threshold) nav.classList.add('nav-mobile-collapsed');
-        else if (dy < -threshold) nav.classList.remove('nav-mobile-collapsed');
+        if (y < 12) syncNavCollapsedClass(false);
+        else if (dy > threshold) syncNavCollapsedClass(true);
+        else if (dy < -threshold) syncNavCollapsedClass(false);
         lastY = y;
     };
 
@@ -75,7 +115,7 @@ function setupMobileBottomNavScrollHide() {
     };
 
     const resetNav = () => {
-        nav.classList.remove('nav-mobile-collapsed');
+        syncNavCollapsedClass(false);
         lastY = 0;
     };
 
@@ -95,7 +135,7 @@ function setupMobileBottomNavScrollHide() {
     attachAll();
     window.addEventListener('resize', () => {
         if (!mq.matches) {
-            nav.classList.remove('nav-mobile-collapsed');
+            syncNavCollapsedClass(false);
             lastY = 0;
         }
         const wide = typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 768px)').matches;
