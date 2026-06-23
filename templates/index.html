@@ -8,6 +8,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" integrity="sha256-9UoFGstCRSdpuO0h7LBCfQHinS8IkGDRlE0VNYO2pbQ=" crossorigin="anonymous"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -184,11 +185,9 @@
                             <h3 class="text-md font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-coffee-accent">
                                 <svg class="w-4 h-4 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg> 새 노트 작성
                             </h3>
-                            <form id="reviewForm" class="space-y-4 pb-20 md:pb-0">
+                            <form id="reviewForm" class="pb-20 md:pb-0">
                                 <input type="hidden" id="formStoreId">
-                                <div><label class="block text-xs font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">원두 이름</label><input type="text" id="beanName" required class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm"></div>
-                                <div><label class="block text-xs font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">태그 (쉼표로 구분)</label><input type="text" id="reviewTags" placeholder="예: 산미, 초콜릿, 견과" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm"></div>
-                                <div><label class="block text-xs font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">테이스팅 노트 & 리뷰</label><textarea id="reviewContent" rows="5" required class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm resize-none"></textarea></div>
+                                <div id="tastingFormBody" class="mb-4"></div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div class="space-y-2">
                                         <label class="block text-[10px] font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-tighter">앞면 (Front)</label>
@@ -435,9 +434,10 @@
     <script>const USER_ROLE = "{{ user_role }}";</script>
     <script src="/static/js/http.js?v=8"></script>
     <script src="/static/js/map-core.js?v=10"></script>
-    <script src="/static/js/store-map.js?v=15"></script>
-    <script src="/static/js/wiki.js?v=1"></script>
-    <script src="/static/js/auth.js?v=2"></script>
+    <script src="/static/js/store-map.js?v=18"></script>
+    <script src="/static/js/tasting-form.js?v=2"></script>
+    <script src="/static/js/wiki.js?v=2"></script>
+    <script src="/static/js/auth.js?v=3"></script>
     <script src="/static/js/app.js?v=51"></script>
 </body>
 </html>

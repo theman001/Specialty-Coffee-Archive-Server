@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from sqlalchemy import func
 from sqlalchemy import text
+from pydantic import BaseModel, Field
 import os
 import json
 import time
@@ -48,6 +49,22 @@ app.include_router(auth_router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+class StoreCreateRequest(BaseModel):
+    name: str = Field(..., max_length=200)
+    brand: Optional[str] = Field(None, max_length=200)
+    address: str = Field(..., max_length=500)
+    lat: float
+    lng: float
+    is_wishlist: bool = False
+
+
+class WikiPostCreateRequest(BaseModel):
+    title: str = Field(..., max_length=500)
+    content: str = Field(..., max_length=50000)
+    category: Optional[str] = Field(None, max_length=200)
+    category_id: Optional[int] = None
+
 
 def error_response(status_code: int, code: str, message: str):
     return JSONResponse(
@@ -467,9 +484,8 @@ def get_feed(session: Session = Depends(get_session)):
     ]
 
 @app.post("/api/stores")
-async def create_store(request: Request, session: Session = Depends(get_session), admin=Depends(require_admin)):
-    data = await request.json()
-    new_store = Store(**data)
+async def create_store(payload: StoreCreateRequest, session: Session = Depends(get_session), admin=Depends(require_admin)):
+    new_store = Store(**payload.model_dump())
     session.add(new_store)
     session.commit()
     session.refresh(new_store)
@@ -670,19 +686,19 @@ def get_wiki_posts(
     return posts
 
 @app.post("/api/wiki")
-async def create_wiki_post(request: Request, session: Session = Depends(get_session), admin=Depends(require_admin)):
-    data = await request.json()
-    category_id = data.get("category_id")
-    category_name = data.get("category")
+async def create_wiki_post(payload: WikiPostCreateRequest, session: Session = Depends(get_session), admin=Depends(require_admin)):
+    category_id = payload.category_id
+    category_name = payload.category
     if category_id is not None:
-        cat = session.get(WikiCategory, int(category_id))
+        cat = session.get(WikiCategory, category_id)
         if cat:
             category_name = cat.name
-    new_post = WikiPost(**data)
-    if category_name is not None:
-        new_post.category = str(category_name)
-    if category_id is not None:
-        new_post.category_id = int(category_id)
+    new_post = WikiPost(
+        title=payload.title,
+        content=payload.content,
+        category=category_name or "미분류",
+        category_id=category_id,
+    )
     session.add(new_post)
     session.commit()
     session.refresh(new_post)

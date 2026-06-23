@@ -157,7 +157,7 @@ window.showWikiDetail = function(post) {
                 <button class="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 text-xs" onclick="window.deleteWiki(${post.id})">삭제</button>
             </div>` : ''}
         </div>
-        <div class="prose dark:prose-invert max-w-none">${marked.parse(post.content || '')}</div>
+        <div class="prose dark:prose-invert max-w-none">${DOMPurify.sanitize(marked.parse(post.content || ''))}</div>
     `;
     document.getElementById('view-wiki').scrollTop = 0;
 };
@@ -169,7 +169,7 @@ window.startEditWiki = function(postId) {
     document.getElementById('wikiTitle').value = post.title || '';
     document.getElementById('wikiContent').value = post.content || '';
     document.getElementById('wikiCategory').value = post.category_id || '';
-    document.getElementById('wikiPreview').innerHTML = marked.parse(post.content || '');
+    document.getElementById('wikiPreview').innerHTML = DOMPurify.sanitize(marked.parse(post.content || ''));
     document.getElementById('btnWriteWiki').click();
 };
 
@@ -233,7 +233,7 @@ window.setupWikiEvents = function() {
     };
 
     document.getElementById('wikiContent').oninput = (e) => {
-        document.getElementById('wikiPreview').innerHTML = marked.parse(e.target.value || '');
+        document.getElementById('wikiPreview').innerHTML = DOMPurify.sanitize(marked.parse(e.target.value || ''));
     };
 
     document.getElementById('wikiSearchInput')?.addEventListener('input', () => window.loadWikiPosts());

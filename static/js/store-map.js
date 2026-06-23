@@ -227,14 +227,14 @@ function renderStoreList() {
         return;
     }
     container.innerHTML = window.storeMapState.storesCache.map(store => `
-        <div onclick='openStoreDetailByList(${JSON.stringify(store).replace(/'/g, "&#39;")})' 
+        <div onclick='openStoreDetailByList(${JSON.stringify(store).replace(/'/g, "&#39;")})'
              class="p-4 rounded-xl bg-slate-50 dark:bg-coffee-card/70 border border-slate-200 dark:border-coffee-border cursor-pointer flex justify-between items-center transition-all hover:scale-[1.02]">
             <div class="flex-1 min-w-0">
                 <h4 class="font-bold text-slate-800 dark:text-coffee-accent text-lg flex items-center gap-2 truncate">
-                    <span class="truncate">${store.name}</span>
+                    <span class="truncate">${escapeHtml(store.name)}</span>
                     ${store.is_wishlist ? '<svg class="w-4 h-4 text-pink-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>' : ''}
                 </h4>
-                <p class="text-xs text-slate-500 dark:text-coffee-muted mt-1 truncate">${store.address}</p>
+                <p class="text-xs text-slate-500 dark:text-coffee-muted mt-1 truncate">${escapeHtml(store.address)}</p>
             </div>
             <div class="w-4 h-4 rounded-full shadow-sm flex-shrink-0 border border-black/10" style="background: ${store.color};"></div>
         </div>
@@ -326,6 +326,69 @@ function bindReviewLightboxThumbClick(img) {
     });
 }
 
+function renderStructuredCard(d) {
+    const mode = d.mode === 'ice' ? '🧊 아이스' : '🔥 핫';
+    const modeCls = d.mode === 'ice'
+        ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300'
+        : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300';
+    const meta = [d.cafe, d.origin, d.roast].filter(Boolean).join(' · ');
+    const stars = d.overall && d.overall.stars
+        ? '<span class="text-amber-400 text-xs tracking-tight">' + '★'.repeat(d.overall.stars) + '☆'.repeat(5 - d.overall.stars) + '</span>'
+        : '';
+    const allTags = [...(d.aroma && d.aroma.tags || []), ...(d.flavor && d.flavor.tags || [])];
+    const scaleDefs = d.mode === 'ice'
+        ? [['산미','acidity'],['단맛','sweetness'],['쓴맛','bitterness'],['바디','body_score'],['청량감','refreshing'],['여운','aftertaste']]
+        : [['산미','acidity'],['단맛','sweetness'],['쓴맛','bitterness'],['바디','body_score'],['밸런스','balance'],['여운','aftertaste']];
+    const scaleParts = scaleDefs
+        .filter(([,k]) => d.intensity && d.intensity[k] > 0)
+        .map(([label,k]) => label + ' ' + d.intensity[k] + '/5')
+        .join('  ·  ');
+    const aromaNote = d.aroma && d.aroma.note;
+    const flavorNote = d.flavor && d.flavor.note;
+    const noteLines = [
+        aromaNote ? `<span class="text-slate-400 dark:text-coffee-muted">향 묘사 :</span> ${escapeHtml(aromaNote)}` : '',
+        flavorNote ? `<span class="text-slate-400 dark:text-coffee-muted">맛 묘사 :</span> ${escapeHtml(flavorNote)}` : '',
+    ].filter(Boolean);
+    return `<div class="space-y-2 mt-1">
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${modeCls}">${mode}</span>
+            ${meta ? `<span class="text-[11px] text-slate-500 dark:text-coffee-muted">${escapeHtml(meta)}</span>` : ''}
+            ${stars}
+        </div>
+        ${allTags.length ? `<div class="flex flex-wrap gap-1">${allTags.map(t => `<span class="text-[10px] px-2 py-0.5 rounded-full bg-coffee-btn/10 text-coffee-btn dark:bg-amber-400/10 dark:text-amber-300 border border-coffee-btn/20">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+        ${noteLines.length ? `<div class="text-xs text-slate-600 dark:text-coffee-text leading-relaxed space-y-0.5">${noteLines.map(l => `<p>${l}</p>`).join('')}</div>` : ''}
+        ${scaleParts ? `<p class="text-[10px] text-slate-400 dark:text-coffee-muted">${escapeHtml(scaleParts)}</p>` : ''}
+        ${d.overall && d.overall.summary ? `<p class="text-xs font-medium text-slate-700 dark:text-coffee-accent italic">"${escapeHtml(d.overall.summary)}"</p>` : ''}
+        ${d.overall && d.overall.repeat ? `<span class="text-[10px] text-slate-400 dark:text-coffee-muted">재방문: ${escapeHtml(d.overall.repeat)}</span>` : ''}
+    </div>`;
+}
+
+function renderReviewContent(r) {
+    let d = null;
+    try { d = JSON.parse(r.content); } catch (e) {}
+    if (d && d._v === 2) return renderStructuredCard(d);
+    return `<p class="text-sm text-slate-600 dark:text-coffee-text whitespace-pre-wrap leading-relaxed">${escapeHtml(r.content)}</p>`;
+}
+
+function structuredToEditText(d) {
+    const lines = [];
+    if (d.mode) lines.push(d.mode === 'ice' ? '[아이스]' : '[핫]');
+    if (d.cafe) lines.push('카페: ' + d.cafe);
+    if (d.origin) lines.push('원산지: ' + d.origin);
+    if (d.roast) lines.push('로스팅: ' + d.roast);
+    const at = (d.aroma && d.aroma.tags || []).join(', ');
+    if (at) lines.push('향: ' + at);
+    if (d.aroma && d.aroma.note) lines.push('향 메모: ' + d.aroma.note);
+    const ft = (d.flavor && d.flavor.tags || []).join(', ');
+    if (ft) lines.push('맛: ' + ft);
+    if (d.flavor && d.flavor.note) lines.push('맛 메모: ' + d.flavor.note);
+    if (d.overall && d.overall.stars) lines.push('별점: ' + '★'.repeat(d.overall.stars));
+    if (d.overall && d.overall.summary) lines.push('총평: ' + d.overall.summary);
+    if (d.overall && d.overall.repeat) lines.push('재방문: ' + d.overall.repeat);
+    if (d.overall && d.overall.note) lines.push(d.overall.note);
+    return lines.join('\n');
+}
+
 function renderReviewThumbsRow(r) {
     const urls = [r.front_card_path, r.back_card_path].filter(Boolean);
     if (!urls.length) return '';
@@ -387,7 +450,11 @@ window.openStoreDetail = async function(store) {
     const reviews = await window.fetchJson(`/api/stores/${store.id}/reviews`);
     const isAdmin = typeof USER_ROLE !== 'undefined' && USER_ROLE === 'admin';
     const dropSvg = `<svg class="w-6 h-6 text-slate-300 dark:text-coffee-border group-hover:text-coffee-btn transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>`;
-    reviewsList.innerHTML = reviews.length ? reviews.map(r => `
+    reviewsList.innerHTML = reviews.length ? reviews.map(r => {
+        let parsedV2 = null;
+        try { const p = JSON.parse(r.content); if (p && p._v === 2) parsedV2 = p; } catch(e) {}
+        const editContent = parsedV2 ? structuredToEditText(parsedV2) : r.content;
+        return `
         <div class="bg-slate-100 dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-white/10 min-w-0"
              data-review-id="${r.id}"
              data-front="${r.front_card_path ? escapeHtml(r.front_card_path) : ''}"
@@ -395,7 +462,7 @@ window.openStoreDetail = async function(store) {
             <div class="review-view-${r.id}">
                 <h4 class="font-bold text-slate-800 dark:text-coffee-accent text-sm mb-2">${escapeHtml(r.bean_name)}</h4>
                 ${renderTagChips(r.tags)}
-                <p class="text-sm text-slate-600 dark:text-coffee-text whitespace-pre-wrap leading-relaxed">${escapeHtml(r.content)}</p>
+                ${renderReviewContent(r)}
                 ${renderReviewThumbsRow(r)}
                 ${isAdmin ? `<div class="mt-3 flex flex-wrap gap-2">
                     <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-slate-700 dark:text-coffee-text hover:border-coffee-btn transition-colors" onclick="window.startEditReview(${r.id})">수정</button>
@@ -409,7 +476,7 @@ window.openStoreDetail = async function(store) {
                 </div>
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">테이스팅 노트</label>
-                    <textarea id="edit-content-${r.id}" rows="4" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm resize-none">${escapeHtml(r.content)}</textarea>
+                    <textarea id="edit-content-${r.id}" rows="4" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm resize-none">${escapeHtml(editContent)}</textarea>
                 </div>
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">태그 (쉼표 구분)</label>
@@ -439,7 +506,7 @@ window.openStoreDetail = async function(store) {
                 </div>
             </div>
         </div>
-    `).join('') : '<p class="text-xs text-coffee-500 italic">아직 기록이 없는 매장입니다.</p>';
+    `; }).join('') : '<p class="text-xs text-coffee-500 italic">아직 기록이 없는 매장입니다.</p>';
 
     if (reviews.length && isAdmin) {
         reviews.forEach((r) => window.bindEditReviewUploads(r.id));
@@ -591,17 +658,18 @@ window.renderFeed = async function() {
             const tags = Array.isArray(r.tags) ? r.tags.join(' ') : '';
             return [r.store_name, r.bean_name, r.content, tags].some((x) => String(x || '').toLowerCase().includes(needle));
         });
-        container.innerHTML = filtered.length ? filtered.map(r => `
+        container.innerHTML = filtered.length ? filtered.map(r => {
+            const feedContent = renderReviewContent(r);
+            return `
             <div class="bg-white dark:bg-coffee-panel p-6 rounded-3xl border border-slate-200 dark:border-coffee-border shadow-xl hover:scale-[1.02] transition-transform cursor-pointer" onclick="openStoreByID(${r.store_id})">
                 <div class="flex justify-between items-start mb-4">
-                    <h3 class="font-serif font-bold text-xl text-coffee-btn dark:text-coffee-accent">${r.store_name}</h3>
-                    <span class="text-[10px] uppercase tracking-widest text-slate-400 dark:text-coffee-muted">${r.bean_name}</span>
+                    <h3 class="font-serif font-bold text-xl text-coffee-btn dark:text-coffee-accent">${escapeHtml(r.store_name)}</h3>
+                    <span class="text-[10px] uppercase tracking-widest text-slate-400 dark:text-coffee-muted">${escapeHtml(r.bean_name)}</span>
                 </div>
                 ${renderTagChips(r.tags)}
-                <p class="text-slate-600 dark:text-coffee-text text-sm mb-4 line-clamp-3">${r.content}</p>
+                ${feedContent}
                 ${r.front_card_path ? `<div class="review-thumb-feed-outer max-md:-mx-2 max-md:px-2 max-md:overflow-x-auto max-md:custom-scrollbar"><div class="review-thumb-feed-slot mb-0 rounded-2xl border border-slate-100 dark:border-coffee-border"><img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb cursor-pointer hover:opacity-90 transition-opacity"></div></div>` : ''}
-            </div>
-        `).join('') : '<p class="col-span-full text-center p-20 opacity-50 text-coffee-muted">검색 결과가 없습니다.</p>';
+            </div>`; }).join('') : '<p class="col-span-full text-center p-20 opacity-50 text-coffee-muted">검색 결과가 없습니다.</p>';
         initReviewThumbLayouts(container);
         if (filtered.length) {
             container.querySelectorAll('.review-lightbox-thumb[data-lightbox-src]').forEach(bindReviewLightboxThumbClick);
@@ -629,8 +697,8 @@ window.doSearch = async function(query) {
         return `
             <div class="p-4 hover:bg-slate-50 dark:hover:bg-coffee-panel border-b border-slate-100 dark:border-coffee-border flex justify-between items-center group">
                 <div class="cursor-pointer flex-1 min-w-0" onclick='selectSearchResult(${jsonStr})'>
-                    <h5 class="font-bold text-slate-800 dark:text-coffee-accent text-sm">${item.title}</h5>
-                    <p class="text-xs text-slate-400 dark:text-coffee-muted truncate">${item.roadAddress || item.category}</p>
+                    <h5 class="font-bold text-slate-800 dark:text-coffee-accent text-sm">${escapeHtml(item.title)}</h5>
+                    <p class="text-xs text-slate-400 dark:text-coffee-muted truncate">${escapeHtml(item.roadAddress || item.category)}</p>
                 </div>
                 <button onclick='toggleWishlistFromSearch(${jsonStr}, event)' class="p-2 text-slate-300 hover:text-pink-500 transition-colors ${isWish ? 'text-pink-500' : ''}">
                     <svg class="w-5 h-5" fill="${isWish ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke="currentColor">
@@ -771,11 +839,14 @@ window.selectSearchResult = function(item) {
 };
 
 window.submitReview = async function(sid) {
+    if (!window.TastingForm) { alert('폼을 불러오지 못했습니다.'); return; }
+    const { bean_name, content, tags } = window.TastingForm.getData();
+    if (!bean_name.trim()) { alert('원두 이름을 입력해주세요.'); return; }
     const fd = new FormData();
     fd.append('store_id', sid);
-    fd.append('bean_name', document.getElementById('beanName').value);
-    fd.append('content', document.getElementById('reviewContent').value);
-    fd.append('tags', document.getElementById('reviewTags')?.value || '');
+    fd.append('bean_name', bean_name);
+    fd.append('content', content);
+    fd.append('tags', tags);
     const front = document.getElementById('frontImage');
     const back = document.getElementById('backImage');
     if (front && front.files[0]) fd.append('front_image', front.files[0]);
@@ -784,6 +855,7 @@ window.submitReview = async function(sid) {
     await window.fetchJson('/api/reviews', { method: 'POST', body: fd });
     await window.loadStores();
     document.getElementById('reviewForm').reset();
+    window.TastingForm.reset();
     if (document.getElementById('frontPreview')) document.getElementById('frontPreview').classList.add('hidden');
     if (document.getElementById('backPreview')) document.getElementById('backPreview').classList.add('hidden');
     const store = window.storeMapState.storesCache.find((s) => Number(s.id) === Number(sid));

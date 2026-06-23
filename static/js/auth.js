@@ -55,7 +55,7 @@ window.loadDeviceList = async function() {
             return `<div class="flex items-center justify-between px-4 py-3 hover:bg-coffee-panel/50 transition-colors">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
-                        <span class="text-sm font-medium text-coffee-text truncate">${d.description}</span>
+                        <span class="text-sm font-medium text-coffee-text truncate">${escapeHtml(d.description)}</span>
                         ${isMe ? '<span class="text-[10px] bg-coffee-btn/20 text-coffee-btn px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">현재 기기</span>' : ''}
                     </div>
                     <p class="text-xs text-coffee-muted mt-0.5">${shortId} · ${date}</p>
