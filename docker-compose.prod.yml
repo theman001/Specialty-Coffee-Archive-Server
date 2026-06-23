@@ -1,0 +1,15 @@
+services:
+  coffee-archive:
+    build:
+      context: https://github.com/theman001/Specialty-Coffee-Archive-Server.git
+    container_name: coffee-archive
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - /data/Specialty-Coffee-Archive-Server/data:/app/data
+      - /data/Specialty-Coffee-Archive-Server/static/uploads:/app/static/uploads
+    env_file:
+      - /data/Specialty-Coffee-Archive-Server/.env
+    environment:
+      - TZ=${TZ}
