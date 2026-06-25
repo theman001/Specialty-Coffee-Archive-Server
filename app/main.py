@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, Request, Form, UploadFile, File, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Optional
+from typing import Optional, List
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -22,9 +22,12 @@ def get_naver_client_id():
     load_dotenv(dotenv_path="/app/.env", override=True)
     return os.getenv("NAVER_CLIENT_ID", "")
 
-from datetime import datetime
+from datetime import datetime, timezone
 
-from .database import create_db_and_tables, get_session, Store, Review, WikiPost, WikiCategory, engine
+from .database import (
+    create_db_and_tables, get_session, Store, Review, WikiPost, WikiCategory, engine,
+    HomeCafeRecipe, HomeCafeRecipeVersion, HomeCafePourStep, HomeCafeEquipment,
+)
 from .utils import search_naver_local, extract_flavor_color
 from .auth import get_current_user, require_admin
 
@@ -64,6 +67,48 @@ class WikiPostCreateRequest(BaseModel):
     content: str = Field(..., max_length=50000)
     category: Optional[str] = Field(None, max_length=200)
     category_id: Optional[int] = None
+
+
+class PourStepInput(BaseModel):
+    step_order: int
+    label: Optional[str] = Field(None, max_length=50)
+    water_g: Optional[float] = Field(None, ge=0, le=500)
+    duration_s: Optional[int] = Field(None, ge=0, le=600)
+    memo: Optional[str] = Field(None, max_length=200)
+
+
+class HomeCafeRecipeCreateRequest(BaseModel):
+    bean_name: str = Field(..., max_length=200)
+    review_id: Optional[int] = None
+    roast_level: Optional[str] = Field(None, max_length=50)
+    brew_type: Optional[str] = Field(None, pattern="^(hot|ice)$")
+    water_temp_c: Optional[float] = Field(None, ge=50, le=100)
+    dose_g: Optional[float] = Field(None, gt=0, le=100)
+    total_water_g: Optional[float] = Field(None, gt=0, le=2000)
+    ratio_n: Optional[float] = Field(None, gt=0, le=30)
+    extraction_mode: str = Field(default="dose", pattern="^(dose|ratio)$")
+    grinder_name: Optional[str] = Field(None, max_length=100)
+    grind_clicks: Optional[int] = Field(None, ge=0, le=500)
+    grind_note: Optional[str] = Field(None, max_length=100)
+    dripper: str = Field(..., max_length=100)
+    filter_type: Optional[str] = Field(None, max_length=100)
+    water_type: Optional[str] = Field(None, max_length=100)
+    result_memo: Optional[str] = Field(None, max_length=2000)
+    result_rating: Optional[int] = Field(None, ge=1, le=5)
+    change_note: Optional[str] = Field(None, max_length=1000)
+    pour_steps: List[PourStepInput] = Field(default=[])
+
+
+class HomeCafeRecipeUpdateRequest(HomeCafeRecipeCreateRequest):
+    bean_name: Optional[str] = Field(None, max_length=200)
+    dripper: Optional[str] = Field(None, max_length=100)
+    result_only: bool = False
+
+
+class EquipmentCreateRequest(BaseModel):
+    equipment_type: str = Field(..., pattern="^(grinder|dripper)$")
+    name: str = Field(..., min_length=1, max_length=100)
+    max_clicks: Optional[int] = Field(None, ge=1, le=500)
 
 
 def error_response(status_code: int, code: str, message: str):
@@ -149,6 +194,15 @@ def _ensure_legacy_columns():
             wiki_cols = {row[1] for row in conn.execute(text("PRAGMA table_info('wikipost')")).fetchall()}
             if "category_id" not in wiki_cols:
                 conn.execute(text("ALTER TABLE wikipost ADD COLUMN category_id INTEGER"))
+            for tbl in ["homecaferecipe", "homecaferecipeversion", "homecafepourstep", "homecafeequipment"]:
+                try:
+                    conn.execute(text(f"SELECT 1 FROM {tbl} LIMIT 1"))
+                except Exception:
+                    try:
+                        from sqlmodel import SQLModel as _SM
+                        _SM.metadata.tables[tbl].create(bind=conn, checkfirst=True)
+                    except Exception:
+                        pass
     except Exception:
         # no-op for non-sqlite / first-boot race
         pass
@@ -793,5 +847,398 @@ def delete_wiki_category(category_id: int, session: Session = Depends(get_sessio
         p.category = "미분류"
         session.add(p)
     session.delete(row)
+    session.commit()
+    return {"status": "success"}
+
+
+# ── HomeCafe helpers ──────────────────────────────────────────────────
+
+def _get_store_name_for_review(review_id: Optional[int], session: Session) -> Optional[str]:
+    if not review_id:
+        return None
+    review = session.get(Review, review_id)
+    if not review:
+        return None
+    store = session.get(Store, review.store_id)
+    return store.name if store else None
+
+
+def _serialize_pour_steps(version_id: int, session: Session) -> list:
+    steps = session.exec(
+        select(HomeCafePourStep)
+        .where(HomeCafePourStep.version_id == version_id)
+        .order_by(HomeCafePourStep.step_order)
+    ).all()
+    return [
+        {
+            "id": s.id,
+            "step_order": s.step_order,
+            "label": s.label,
+            "water_g": s.water_g,
+            "duration_s": s.duration_s,
+            "memo": s.memo,
+        }
+        for s in steps
+    ]
+
+
+def _serialize_version_full(version: HomeCafeRecipeVersion, session: Session) -> dict:
+    return {
+        "id": version.id,
+        "version_number": version.version_number,
+        "water_temp_c": version.water_temp_c,
+        "dose_g": version.dose_g,
+        "total_water_g": version.total_water_g,
+        "ratio_n": version.ratio_n,
+        "extraction_mode": version.extraction_mode,
+        "grinder_name": version.grinder_name,
+        "grind_clicks": version.grind_clicks,
+        "grind_note": version.grind_note,
+        "dripper": version.dripper,
+        "filter_type": version.filter_type,
+        "water_type": version.water_type,
+        "result_memo": version.result_memo,
+        "result_rating": version.result_rating,
+        "change_note": version.change_note,
+        "created_at": version.created_at.isoformat() if version.created_at else None,
+        "pour_steps": _serialize_pour_steps(version.id, session),
+    }
+
+
+def _serialize_recipe_with_version(recipe: HomeCafeRecipe, session: Session) -> dict:
+    all_versions = session.exec(
+        select(HomeCafeRecipeVersion).where(HomeCafeRecipeVersion.recipe_id == recipe.id)
+    ).all()
+    version_count = len(all_versions)
+
+    current_version = None
+    if recipe.current_version_id:
+        cv = session.get(HomeCafeRecipeVersion, recipe.current_version_id)
+        if cv:
+            current_version = _serialize_version_full(cv, session)
+
+    store_name = _get_store_name_for_review(recipe.review_id, session)
+
+    return {
+        "id": recipe.id,
+        "bean_name": recipe.bean_name,
+        "review_id": recipe.review_id,
+        "store_name": store_name,
+        "roast_level": recipe.roast_level,
+        "brew_type": recipe.brew_type,
+        "current_version_id": recipe.current_version_id,
+        "version_count": version_count,
+        "current_version": current_version,
+        "created_at": recipe.created_at.isoformat() if recipe.created_at else None,
+        "updated_at": recipe.updated_at.isoformat() if recipe.updated_at else None,
+    }
+
+
+def _create_version_and_steps(
+    recipe_id: int,
+    version_number: int,
+    payload: HomeCafeRecipeCreateRequest,
+    fallback_dripper: str,
+    session: Session,
+) -> HomeCafeRecipeVersion:
+    version = HomeCafeRecipeVersion(
+        recipe_id=recipe_id,
+        version_number=version_number,
+        water_temp_c=payload.water_temp_c,
+        dose_g=payload.dose_g,
+        total_water_g=payload.total_water_g,
+        ratio_n=payload.ratio_n,
+        extraction_mode=payload.extraction_mode or "dose",
+        grinder_name=payload.grinder_name,
+        grind_clicks=payload.grind_clicks,
+        grind_note=payload.grind_note,
+        dripper=payload.dripper or fallback_dripper,
+        filter_type=payload.filter_type,
+        water_type=payload.water_type,
+        result_memo=payload.result_memo,
+        result_rating=payload.result_rating,
+        change_note=payload.change_note,
+    )
+    session.add(version)
+    session.flush()
+    for step_in in (payload.pour_steps or []):
+        step = HomeCafePourStep(
+            version_id=version.id,
+            step_order=step_in.step_order,
+            label=step_in.label,
+            water_g=step_in.water_g,
+            duration_s=step_in.duration_s,
+            memo=step_in.memo,
+        )
+        session.add(step)
+    return version
+
+
+# ── HomeCafe endpoints ────────────────────────────────────────────────
+
+@app.get("/api/homecafe/bean-options")
+def list_bean_options(session: Session = Depends(get_session)):
+    rows = session.exec(
+        select(Review, Store.name)
+        .join(Store, Review.store_id == Store.id)
+        .order_by(Store.name, Review.bean_name)
+    ).all()
+    return [
+        {"review_id": review.id, "store_name": store_name, "bean_name": review.bean_name}
+        for review, store_name in rows
+    ]
+
+
+@app.get("/api/homecafe/recipes")
+def list_homecafe_recipes(session: Session = Depends(get_session)):
+    recipes = session.exec(
+        select(HomeCafeRecipe).order_by(HomeCafeRecipe.updated_at.desc())
+    ).all()
+    return [_serialize_recipe_with_version(r, session) for r in recipes]
+
+
+@app.post("/api/homecafe/recipes")
+def create_homecafe_recipe(
+    payload: HomeCafeRecipeCreateRequest,
+    session: Session = Depends(get_session),
+    admin=Depends(require_admin),
+):
+    recipe = HomeCafeRecipe(
+        bean_name=payload.bean_name,
+        review_id=payload.review_id,
+        roast_level=payload.roast_level,
+        brew_type=payload.brew_type,
+    )
+    session.add(recipe)
+    session.flush()
+
+    version = _create_version_and_steps(
+        recipe_id=recipe.id,
+        version_number=1,
+        payload=payload,
+        fallback_dripper=payload.dripper,
+        session=session,
+    )
+
+    recipe.current_version_id = version.id
+    session.add(recipe)
+    session.commit()
+    session.refresh(recipe)
+    return _serialize_recipe_with_version(recipe, session)
+
+
+@app.get("/api/homecafe/recipes/{recipe_id}")
+def get_homecafe_recipe(recipe_id: int, session: Session = Depends(get_session)):
+    recipe = session.get(HomeCafeRecipe, recipe_id)
+    if not recipe:
+        return error_response(404, "RECIPE_NOT_FOUND", "레시피를 찾을 수 없습니다.")
+    return _serialize_recipe_with_version(recipe, session)
+
+
+@app.patch("/api/homecafe/recipes/{recipe_id}")
+def update_homecafe_recipe(
+    recipe_id: int,
+    payload: HomeCafeRecipeUpdateRequest,
+    session: Session = Depends(get_session),
+    admin=Depends(require_admin),
+):
+    recipe = session.get(HomeCafeRecipe, recipe_id)
+    if not recipe:
+        return error_response(404, "RECIPE_NOT_FOUND", "레시피를 찾을 수 없습니다.")
+
+    if payload.result_only:
+        if not recipe.current_version_id:
+            return error_response(400, "NO_CURRENT_VERSION", "현재 버전이 없습니다.")
+        cv = session.get(HomeCafeRecipeVersion, recipe.current_version_id)
+        if not cv:
+            return error_response(404, "VERSION_NOT_FOUND", "현재 버전을 찾을 수 없습니다.")
+        if payload.result_memo is not None:
+            cv.result_memo = payload.result_memo
+        if payload.result_rating is not None:
+            cv.result_rating = payload.result_rating
+        session.add(cv)
+        session.commit()
+        return {"status": "success"}
+
+    existing_versions = session.exec(
+        select(HomeCafeRecipeVersion).where(HomeCafeRecipeVersion.recipe_id == recipe_id)
+    ).all()
+    next_version_number = max((v.version_number for v in existing_versions), default=0) + 1
+
+    fallback_dripper = ""
+    if recipe.current_version_id:
+        cv = session.get(HomeCafeRecipeVersion, recipe.current_version_id)
+        if cv:
+            fallback_dripper = cv.dripper
+
+    version = _create_version_and_steps(
+        recipe_id=recipe_id,
+        version_number=next_version_number,
+        payload=payload,
+        fallback_dripper=fallback_dripper,
+        session=session,
+    )
+
+    if payload.bean_name is not None:
+        recipe.bean_name = payload.bean_name
+    if payload.review_id is not None:
+        recipe.review_id = payload.review_id
+    if payload.roast_level is not None:
+        recipe.roast_level = payload.roast_level
+    if payload.brew_type is not None:
+        recipe.brew_type = payload.brew_type
+    recipe.current_version_id = version.id
+    recipe.updated_at = datetime.now(timezone.utc)
+    session.add(recipe)
+    session.commit()
+    session.refresh(recipe)
+    return _serialize_recipe_with_version(recipe, session)
+
+
+@app.delete("/api/homecafe/recipes/{recipe_id}")
+def delete_homecafe_recipe(
+    recipe_id: int,
+    session: Session = Depends(get_session),
+    admin=Depends(require_admin),
+):
+    recipe = session.get(HomeCafeRecipe, recipe_id)
+    if not recipe:
+        return error_response(404, "RECIPE_NOT_FOUND", "레시피를 찾을 수 없습니다.")
+
+    versions = session.exec(
+        select(HomeCafeRecipeVersion).where(HomeCafeRecipeVersion.recipe_id == recipe_id)
+    ).all()
+    for v in versions:
+        steps = session.exec(
+            select(HomeCafePourStep).where(HomeCafePourStep.version_id == v.id)
+        ).all()
+        for s in steps:
+            session.delete(s)
+        session.delete(v)
+    session.delete(recipe)
+    session.commit()
+    return {"status": "success"}
+
+
+@app.get("/api/homecafe/recipes/{recipe_id}/versions")
+def list_homecafe_versions(recipe_id: int, session: Session = Depends(get_session)):
+    recipe = session.get(HomeCafeRecipe, recipe_id)
+    if not recipe:
+        return error_response(404, "RECIPE_NOT_FOUND", "레시피를 찾을 수 없습니다.")
+    versions = session.exec(
+        select(HomeCafeRecipeVersion)
+        .where(HomeCafeRecipeVersion.recipe_id == recipe_id)
+        .order_by(HomeCafeRecipeVersion.version_number.desc())
+    ).all()
+    return [
+        {
+            "id": v.id,
+            "version_number": v.version_number,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+            "change_note": v.change_note,
+            "result_rating": v.result_rating,
+            "result_memo": v.result_memo,
+            "grind_clicks": v.grind_clicks,
+            "dose_g": v.dose_g,
+            "total_water_g": v.total_water_g,
+            "water_temp_c": v.water_temp_c,
+            "dripper": v.dripper,
+            "is_current": v.id == recipe.current_version_id,
+        }
+        for v in versions
+    ]
+
+
+@app.get("/api/homecafe/recipes/{recipe_id}/versions/{version_id}")
+def get_homecafe_version(
+    recipe_id: int, version_id: int, session: Session = Depends(get_session)
+):
+    version = session.get(HomeCafeRecipeVersion, version_id)
+    if not version or version.recipe_id != recipe_id:
+        return error_response(404, "VERSION_NOT_FOUND", "버전을 찾을 수 없습니다.")
+    return _serialize_version_full(version, session)
+
+
+@app.delete("/api/homecafe/recipes/{recipe_id}/versions/{version_id}")
+def delete_homecafe_version(
+    recipe_id: int,
+    version_id: int,
+    session: Session = Depends(get_session),
+    admin=Depends(require_admin),
+):
+    recipe = session.get(HomeCafeRecipe, recipe_id)
+    if not recipe:
+        return error_response(404, "RECIPE_NOT_FOUND", "레시피를 찾을 수 없습니다.")
+    version = session.get(HomeCafeRecipeVersion, version_id)
+    if not version or version.recipe_id != recipe_id:
+        return error_response(404, "VERSION_NOT_FOUND", "버전을 찾을 수 없습니다.")
+
+    all_versions = session.exec(
+        select(HomeCafeRecipeVersion).where(HomeCafeRecipeVersion.recipe_id == recipe_id)
+    ).all()
+    if len(all_versions) <= 1:
+        return error_response(
+            400, "LAST_VERSION", "마지막 버전은 삭제할 수 없습니다. 레시피 전체를 삭제하세요."
+        )
+    if recipe.current_version_id == version_id:
+        return error_response(
+            400, "CURRENT_VERSION", "현재 버전은 삭제할 수 없습니다. 먼저 다른 버전으로 복원하세요."
+        )
+
+    steps = session.exec(
+        select(HomeCafePourStep).where(HomeCafePourStep.version_id == version_id)
+    ).all()
+    for s in steps:
+        session.delete(s)
+    session.delete(version)
+    session.commit()
+    return {"status": "success", "remaining_versions": len(all_versions) - 1}
+
+
+# ── Equipment endpoints ────────────────────────────────────────────────
+
+@app.get("/api/homecafe/equipment")
+def list_equipment(equipment_type: Optional[str] = None, session: Session = Depends(get_session)):
+    query = select(HomeCafeEquipment).order_by(HomeCafeEquipment.name)
+    if equipment_type:
+        query = query.where(HomeCafeEquipment.equipment_type == equipment_type)
+    items = session.exec(query).all()
+    return [
+        {"id": e.id, "equipment_type": e.equipment_type, "name": e.name, "max_clicks": e.max_clicks}
+        for e in items
+    ]
+
+
+@app.post("/api/homecafe/equipment")
+def create_equipment(
+    body: EquipmentCreateRequest,
+    session: Session = Depends(get_session),
+    admin=Depends(require_admin),
+):
+    existing = session.exec(
+        select(HomeCafeEquipment).where(
+            HomeCafeEquipment.equipment_type == body.equipment_type,
+            HomeCafeEquipment.name == body.name,
+        )
+    ).first()
+    if existing:
+        return {"id": existing.id, "equipment_type": existing.equipment_type, "name": existing.name, "max_clicks": existing.max_clicks}
+    eq = HomeCafeEquipment(equipment_type=body.equipment_type, name=body.name, max_clicks=body.max_clicks)
+    session.add(eq)
+    session.commit()
+    session.refresh(eq)
+    return {"id": eq.id, "equipment_type": eq.equipment_type, "name": eq.name, "max_clicks": eq.max_clicks}
+
+
+@app.delete("/api/homecafe/equipment/{eq_id}")
+def delete_equipment(
+    eq_id: int,
+    session: Session = Depends(get_session),
+    admin=Depends(require_admin),
+):
+    eq = session.get(HomeCafeEquipment, eq_id)
+    if not eq:
+        return error_response(404, "NOT_FOUND", "장비를 찾을 수 없습니다.")
+    session.delete(eq)
     session.commit()
     return {"status": "success"}

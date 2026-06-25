@@ -145,6 +145,8 @@ window.switchView = function(viewName) {
         window.renderFeed();
     } else if (viewName === 'wiki') {
         window.loadWikiPosts();
+    } else if (viewName === 'homecafe') {
+        window.initHomeCafe();
     }
 };
 

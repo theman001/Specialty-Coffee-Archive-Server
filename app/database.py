@@ -1,7 +1,7 @@
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Session, create_engine
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/coffee_archive.db")
 # check if sqlite URL needs special connect args
@@ -52,6 +52,56 @@ class WikiCategory(SQLModel, table=True):
     name: str = Field(index=True)
     parent_id: Optional[int] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class HomeCafeRecipe(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bean_name: str = Field(..., max_length=200)
+    review_id: Optional[int] = Field(default=None, index=True)
+    roast_level: Optional[str] = Field(default=None, max_length=50)
+    brew_type: Optional[str] = Field(default=None, max_length=20)
+    current_version_id: Optional[int] = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class HomeCafeRecipeVersion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    recipe_id: int = Field(foreign_key="homecaferecipe.id", index=True)
+    version_number: int
+    water_temp_c: Optional[float] = None
+    dose_g: Optional[float] = None
+    total_water_g: Optional[float] = None
+    ratio_n: Optional[float] = None
+    extraction_mode: str = Field(default="dose")
+    grinder_name: Optional[str] = Field(default=None, max_length=100)
+    grind_clicks: Optional[int] = None
+    grind_note: Optional[str] = Field(default=None, max_length=100)
+    dripper: str = Field(..., max_length=100)
+    filter_type: Optional[str] = Field(default=None, max_length=100)
+    water_type: Optional[str] = Field(default=None, max_length=100)
+    result_memo: Optional[str] = Field(default=None, max_length=2000)
+    result_rating: Optional[int] = Field(default=None)
+    change_note: Optional[str] = Field(default=None, max_length=1000)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class HomeCafePourStep(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    version_id: int = Field(foreign_key="homecaferecipeversion.id", index=True)
+    step_order: int
+    label: Optional[str] = Field(default=None, max_length=50)
+    water_g: Optional[float] = None
+    duration_s: Optional[int] = None
+    memo: Optional[str] = Field(default=None, max_length=200)
+
+
+class HomeCafeEquipment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    equipment_type: str = Field(..., max_length=20)  # 'grinder' | 'dripper'
+    name: str = Field(..., max_length=100)
+    max_clicks: Optional[int] = Field(default=None)  # grinder only
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

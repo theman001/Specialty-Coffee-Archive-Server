@@ -23,6 +23,14 @@ window.postJson = function(url, payload) {
     });
 };
 
+window.patchJson = function(url, payload) {
+    return window.fetchJson(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+};
+
 window.patchForm = async function(url, formData) {
     const response = await fetch(url, {
         method: 'PATCH',

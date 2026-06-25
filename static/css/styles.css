@@ -258,6 +258,17 @@ html.dark .premium-card p {
   }
 }
 
+/* HomeCafe custom stepper: hide native browser spin buttons */
+.hc-stepper input[type=number]::-webkit-inner-spin-button,
+.hc-stepper input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.hc-stepper input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* 모바일 하단 네비: 스크롤 방향에 따라 숨김 */
 @media (max-width: 767px) {
   /* 고정 네비 높이만큼 본문 하단 여백 — 네비가 translate로 숨겨질 때는 패딩도 제거해 빈 영역이 남지 않게 함 */

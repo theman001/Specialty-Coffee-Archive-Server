@@ -40,7 +40,7 @@
         }
     </script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/styles.css?v=30" />
+    <link rel="stylesheet" href="/static/css/styles.css?v=31" />
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
@@ -237,17 +237,18 @@
         </div>
 
         <!-- 3. HOME CAFE VIEW -->
-        <div id="view-homecafe" class="flex-1 flex flex-col w-full h-full hidden bg-slate-50 dark:bg-coffee-root p-8">
-            <header class="max-w-4xl mx-auto w-full mb-8">
-                <h1 class="text-4xl font-serif font-bold text-slate-800 dark:text-coffee-accent">Home Cafe Archive</h1>
-                <p class="text-slate-500 dark:text-coffee-muted mt-2">집에서 직접 내린 커피 기록 (Draft)</p>
-            </header>
-            <div class="flex-1 max-w-4xl mx-auto w-full flex items-center justify-center">
-                <div class="text-center p-12 bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border rounded-3xl shadow-xl">
-                    <svg class="w-20 h-20 text-coffee-btn mx-auto mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.628.283a2 2 0 01-1.186.13l-2.46-.494a2 2 0 01-1.353-.82L5.432 12.3c-.662-.883-.984-1.956-.902-3.032l.142-1.85a2 2 0 011.666-1.834l3.352-.57a2 2 0 011.53.385l2.42 1.613a2 2 0 001.11.332h3.2a12.035 12.035 0 017.382 2.53l.11.085a2 2 0 01.378 2.622l-1.428 2.143a2 2 0 01-1.664.889z" /></svg>
-                    <h2 class="text-2xl font-bold mb-4">준비 중인 기능입니다.</h2>
-                    <p class="text-slate-500 dark:text-coffee-muted">홈카페 도구, 레시피, 배치 브루잉 등을 기록하는 공간으로 개발 예정입니다.</p>
+        <div id="view-homecafe" class="flex-1 flex flex-col w-full h-full hidden bg-slate-50 dark:bg-coffee-root overflow-y-auto custom-scrollbar">
+            <!-- sticky header -->
+            <div class="sticky top-0 z-10 bg-slate-50/95 dark:bg-coffee-root/95 backdrop-blur-sm border-b border-slate-200 dark:border-coffee-border px-6 py-4 flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent">Home Cafe</h1>
+                    <p class="text-sm text-slate-500 dark:text-coffee-muted mt-0.5">핸드드립 레시피 아카이브</p>
                 </div>
+                <button id="btnNewRecipe" class="hidden px-4 py-2 bg-coffee-btn hover:bg-coffee-btnHover text-white rounded-xl text-sm font-medium transition-colors shadow-sm">+ 레시피 만들기</button>
+            </div>
+            <!-- recipe card list -->
+            <div id="homecafe-recipe-list" class="px-6 py-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto w-full">
+                <!-- JS rendered -->
             </div>
         </div>
 
@@ -430,6 +431,198 @@
         </div>
     </div>
 
+    <!-- HomeCafe Write Modal -->
+    <div id="homecafeWriteModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-coffee-root/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border p-6 md:p-8 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto custom-scrollbar transform scale-95 transition-transform duration-300 relative mx-4">
+            <button id="btnCloseHCWrite" class="absolute top-5 right-5 text-slate-400 dark:text-coffee-muted hover:text-coffee-accent"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <h2 id="hcWriteModalTitle" class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent mb-6">레시피 만들기</h2>
+            <form id="homecafeRecipeForm" class="space-y-6">
+
+                <!-- 원두 -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest">원두</h3>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">원두 선택</label>
+                        <select id="hc-bean-select" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
+                            <option value="manual">✏️ 직접 입력...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">원두 이름 <span class="text-red-400">*</span></label>
+                        <input id="hc-bean-name" type="text" maxlength="200" placeholder="예: 에티오피아 예가체프 G1" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">배전도</label>
+                            <select id="hc-roast-level" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
+                                <option value="">선택 안 함</option>
+                                <option>라이트</option>
+                                <option>미디엄 라이트</option>
+                                <option>미디엄</option>
+                                <option>미디엄 다크</option>
+                                <option>다크</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">추출 방식</label>
+                            <select id="hc-brew-type" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
+                                <option value="hot">Hot</option>
+                                <option value="ice">Ice</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 추출 파라미터 -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest">추출 파라미터</h3>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">원두 (g)</label>
+                            <div class="hc-stepper flex items-center rounded-xl overflow-hidden border border-slate-200 dark:border-coffee-border bg-slate-50 dark:bg-coffee-card">
+                                <button type="button" class="hc-step-minus px-2 py-2 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn hover:bg-slate-100 dark:hover:bg-coffee-border transition-colors font-bold border-r border-slate-200 dark:border-coffee-border select-none leading-none">−</button>
+                                <input id="hc-dose-g" type="number" min="1" max="100" step="0.1" placeholder="15" class="hc-stepper-input flex-1 min-w-0 text-center bg-transparent text-sm outline-none py-2 dark:text-coffee-accent">
+                                <button type="button" class="hc-step-plus px-2 py-2 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn hover:bg-slate-100 dark:hover:bg-coffee-border transition-colors font-bold border-l border-slate-200 dark:border-coffee-border select-none leading-none">+</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">물 (g)</label>
+                            <div class="hc-stepper flex items-center rounded-xl overflow-hidden border border-slate-200 dark:border-coffee-border bg-slate-50 dark:bg-coffee-card">
+                                <button type="button" class="hc-step-minus px-2 py-2 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn hover:bg-slate-100 dark:hover:bg-coffee-border transition-colors font-bold border-r border-slate-200 dark:border-coffee-border select-none leading-none">−</button>
+                                <input id="hc-total-water-g" type="number" min="1" max="2000" step="1" placeholder="225" class="hc-stepper-input flex-1 min-w-0 text-center bg-transparent text-sm outline-none py-2 dark:text-coffee-accent">
+                                <button type="button" class="hc-step-plus px-2 py-2 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn hover:bg-slate-100 dark:hover:bg-coffee-border transition-colors font-bold border-l border-slate-200 dark:border-coffee-border select-none leading-none">+</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">온도 (°C)</label>
+                            <div class="hc-stepper flex items-center rounded-xl overflow-hidden border border-slate-200 dark:border-coffee-border bg-slate-50 dark:bg-coffee-card">
+                                <button type="button" class="hc-step-minus px-2 py-2 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn hover:bg-slate-100 dark:hover:bg-coffee-border transition-colors font-bold border-r border-slate-200 dark:border-coffee-border select-none leading-none">−</button>
+                                <input id="hc-water-temp" type="number" min="50" max="100" step="0.5" placeholder="93" class="hc-stepper-input flex-1 min-w-0 text-center bg-transparent text-sm outline-none py-2 dark:text-coffee-accent">
+                                <button type="button" class="hc-step-plus px-2 py-2 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn hover:bg-slate-100 dark:hover:bg-coffee-border transition-colors font-bold border-l border-slate-200 dark:border-coffee-border select-none leading-none">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">비율 1:<span id="hc-ratio-display" class="font-mono font-bold text-coffee-btn">15.0</span></label>
+                        <input id="hc-ratio-n" type="range" min="12" max="20" step="0.5" value="15" class="w-full accent-coffee-btn">
+                        <div class="flex justify-between text-[10px] text-slate-400 dark:text-coffee-muted mt-0.5"><span>1:12</span><span>1:20</span></div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">기준 모드</label>
+                        <select id="hc-extraction-mode" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
+                            <option value="dose">정량 기준 (원두량 고정)</option>
+                            <option value="ratio">비율 기준</option>
+                        </select>
+                    </div>
+                </section>
+
+                <!-- 분쇄도 -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest">분쇄도</h3>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">그라인더</label>
+                        <select id="hc-grinder-select" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                            <option value="manual">✏️ 직접 입력...</option>
+                        </select>
+                        <div id="hc-grinder-manual-row" class="hidden mt-2 space-y-2">
+                            <input id="hc-grinder-name" type="text" maxlength="100" placeholder="예: 코만단테 C40" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-slate-500 dark:text-coffee-muted whitespace-nowrap shrink-0">최대 클릭 수</label>
+                                <div class="hc-stepper flex items-center rounded-xl overflow-hidden border border-slate-200 dark:border-coffee-border bg-slate-50 dark:bg-coffee-card">
+                                    <button type="button" class="hc-step-minus px-2.5 py-1.5 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn hover:bg-slate-100 dark:hover:bg-coffee-border transition-colors font-bold border-r border-slate-200 dark:border-coffee-border select-none leading-none">−</button>
+                                    <input id="hc-grinder-max-clicks" type="number" min="1" max="500" placeholder="40" class="hc-stepper-input w-14 text-center bg-transparent text-sm outline-none py-1.5 dark:text-coffee-accent">
+                                    <button type="button" class="hc-step-plus px-2.5 py-1.5 text-slate-400 dark:text-coffee-muted hover:text-coffee-btn hover:bg-slate-100 dark:hover:bg-coffee-border transition-colors font-bold border-l border-slate-200 dark:border-coffee-border select-none leading-none">+</button>
+                                </div>
+                                <span class="text-[10px] text-slate-400 dark:text-coffee-muted">저장 시 등록됩니다</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">클릭 수: <span id="hc-grind-clicks-display" class="font-mono font-bold text-coffee-btn">0</span></label>
+                        <input id="hc-grind-clicks" type="range" min="0" max="100" step="1" value="0" class="w-full accent-coffee-btn">
+                        <div class="flex justify-between text-[10px] text-slate-400 dark:text-coffee-muted mt-0.5"><span>0</span><span id="hc-grind-max-display">100</span></div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">분쇄 메모</label>
+                        <input id="hc-grind-note" type="text" maxlength="100" placeholder="예: EK43 기준 8.5" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                    </div>
+                </section>
+
+                <!-- 추출 도구 -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest">추출 도구</h3>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">드리퍼 <span class="text-red-400">*</span></label>
+                        <select id="hc-dripper-select" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                            <option value="manual">✏️ 직접 입력...</option>
+                        </select>
+                        <div id="hc-dripper-manual-row" class="hidden mt-2">
+                            <input id="hc-dripper" type="text" maxlength="100" placeholder="예: Hario V60 02, Kalita Wave 185" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                            <p class="text-[10px] text-slate-400 dark:text-coffee-muted mt-1">저장 시 드리퍼 목록에 등록됩니다</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">필터 종류</label>
+                            <input id="hc-filter-type" type="text" maxlength="100" placeholder="예: 하리오 화이트" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">물 종류</label>
+                            <input id="hc-water-type" type="text" maxlength="100" placeholder="예: 정수기물, 에비앙" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 브루잉 결과 -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest">브루잉 결과</h3>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1.5">자가 평가</label>
+                        <div id="hc-form-stars" class="flex gap-2">
+                            <span class="hc-star cursor-pointer text-2xl leading-none text-slate-300 dark:text-coffee-border" data-star="1">☆</span>
+                            <span class="hc-star cursor-pointer text-2xl leading-none text-slate-300 dark:text-coffee-border" data-star="2">☆</span>
+                            <span class="hc-star cursor-pointer text-2xl leading-none text-slate-300 dark:text-coffee-border" data-star="3">☆</span>
+                            <span class="hc-star cursor-pointer text-2xl leading-none text-slate-300 dark:text-coffee-border" data-star="4">☆</span>
+                            <span class="hc-star cursor-pointer text-2xl leading-none text-slate-300 dark:text-coffee-border" data-star="5">☆</span>
+                        </div>
+                        <input type="hidden" id="hc-result-rating">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">결과 메모</label>
+                        <textarea id="hc-result-memo" rows="3" maxlength="2000" placeholder="이번 브루잉의 맛, 느낌, 개선 방향을 기록하세요" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn resize-none"></textarea>
+                    </div>
+                </section>
+
+                <!-- 변경 이유 (edit only) -->
+                <section id="hc-change-note-section" class="hidden space-y-3">
+                    <h3 class="text-xs font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest">변경 이유</h3>
+                    <input id="hc-change-note" type="text" maxlength="1000" placeholder="이전 버전 대비 변경 이유 (선택)" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                </section>
+
+                <!-- 푸어 단계 -->
+                <section class="space-y-3">
+                    <h3 class="text-xs font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest">푸어 단계</h3>
+                    <div id="hc-pour-steps-container" class="space-y-0"></div>
+                    <div class="flex items-center justify-between">
+                        <button type="button" id="hc-add-pour-step" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-xs text-slate-600 dark:text-coffee-muted hover:border-coffee-btn transition-colors">+ 단계 추가</button>
+                        <span class="text-xs text-slate-500 dark:text-coffee-muted">합계: <span id="hc-pour-total" class="font-mono font-bold text-coffee-btn">0</span>g</span>
+                    </div>
+                </section>
+
+                <button type="submit" id="hcSubmitBtn" class="w-full py-3.5 rounded-xl bg-coffee-btn text-white font-bold hover:bg-coffee-btnHover transition-all shadow-lg text-sm mt-2">저장하기</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- HomeCafe Brew Sheet Modal -->
+    <div id="homecafeBrewSheet" class="fixed inset-0 z-[60] flex items-center justify-center bg-coffee-root/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border rounded-3xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto custom-scrollbar transform scale-95 transition-transform duration-300 mx-4">
+            <div id="homecafeBrewSheetContent">
+                <!-- JS rendered -->
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script>const USER_ROLE = "{{ user_role }}";</script>
     <script src="/static/js/http.js?v=8"></script>
@@ -437,6 +630,7 @@
     <script src="/static/js/store-map.js?v=18"></script>
     <script src="/static/js/tasting-form.js?v=2"></script>
     <script src="/static/js/wiki.js?v=2"></script>
+    <script src="/static/js/homecafe.js?v=2"></script>
     <script src="/static/js/auth.js?v=3"></script>
     <script src="/static/js/app.js?v=51"></script>
 </body>
