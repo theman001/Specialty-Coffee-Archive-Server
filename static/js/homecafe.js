@@ -1009,7 +1009,7 @@ function _renderBrewLogSection(recipe, cv) {
             const dateStr = new Date(log.brewed_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
             const stars = log.overall_rating ? hcStars(log.overall_rating, false, '') : '';
 
-            const stepDiffs = log.steps.map(ls => {
+            const stepDiffRows = log.steps.map(ls => {
                 const ref = steps.find(s => s.step_order === ls.step_order);
                 const label = hcEsc(ls.label || `${ls.step_order}차`);
 
@@ -1026,8 +1026,12 @@ function _renderBrewLogSection(recipe, cv) {
                     const diffStr = diff !== null ? `<span class="${cls}">(${diff >= 0 ? '+' : ''}${diff}s)</span>` : '';
                     parts.push(`${ls.actual_duration_s}s${diffStr}`);
                 }
-                return parts.length ? `<span class="mr-2 whitespace-nowrap"><span class="text-slate-500 dark:text-coffee-muted">${label}</span> ${parts.join(' / ')}</span>` : '';
-            }).filter(Boolean).join('');
+                if (!parts.length) return null;
+                return `<div class="flex items-center gap-2">
+                    <span class="text-slate-500 dark:text-coffee-muted shrink-0 w-16">${label}</span>
+                    <span>${parts.join(' / ')}</span>
+                </div>`;
+            }).filter(Boolean);
 
             return `
             <div class="p-3 rounded-xl border border-slate-200 dark:border-coffee-border">
@@ -1039,7 +1043,7 @@ function _renderBrewLogSection(recipe, cv) {
                     ${isAdmin() ? `<button onclick="window._deleteBrewLog(${recipe.id}, ${log.id})" class="text-[10px] text-red-400 hover:text-red-500">삭제</button>` : ''}
                 </div>
                 ${log.taste_note ? `<p class="text-sm text-slate-600 dark:text-coffee-text mb-1.5">${hcEsc(log.taste_note)}</p>` : ''}
-                ${stepDiffs ? `<div class="text-xs leading-6 flex flex-wrap">${stepDiffs}</div>` : ''}
+                ${stepDiffRows.length ? `<div class="text-xs space-y-1 mt-1">${stepDiffRows.join('')}</div>` : ''}
             </div>`;
         }).join('')}
         </div>`;
