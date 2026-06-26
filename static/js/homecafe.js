@@ -955,37 +955,37 @@ function _renderBrewLogSection(recipe, cv) {
     // Input form (admin only)
     let inputHtml = '';
     if (isAdmin()) {
-        const stepRows = steps.map(s => {
+        const stepCols = steps.map(s => {
             const refParts = [
                 s.water_g != null ? s.water_g + 'g' : null,
                 s.duration_s != null ? s.duration_s + 's' : null,
             ].filter(Boolean).join(' / ');
             return `
-            <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-xs text-slate-500 dark:text-coffee-muted shrink-0 w-24">
-                    ${hcEsc(s.label || s.step_order + '차 푸어')}
-                    ${refParts ? `<span class="block text-[10px] text-slate-400 dark:text-coffee-muted">${hcEsc(refParts)}</span>` : ''}
-                </span>
-                <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border shrink-0">
-                    <button type="button" class="hc-step-minus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">−</button>
-                    <input type="number" id="hc-log-step-water-${s.step_order}" min="0" max="500" step="0.5"
-                        placeholder="${s.water_g != null ? s.water_g : '물(g)'}"
-                        class="w-14 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent">
-                    <button type="button" class="hc-step-plus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">+</button>
+            <div class="flex flex-col items-center gap-1.5 min-w-0">
+                <div class="text-center w-full">
+                    <div class="text-xs font-medium text-slate-600 dark:text-coffee-text truncate">${hcEsc(s.label || s.step_order + '차 푸어')}</div>
+                    ${refParts ? `<div class="text-[10px] text-slate-400 dark:text-coffee-muted">${hcEsc(refParts)}</div>` : '<div class="text-[10px]">&nbsp;</div>'}
                 </div>
-                <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border shrink-0">
-                    <button type="button" class="hc-step-minus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">−</button>
+                <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border w-full">
+                    <button type="button" class="hc-step-minus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">−</button>
+                    <input type="number" id="hc-log-step-water-${s.step_order}" min="0" max="500" step="0.5"
+                        placeholder="${s.water_g != null ? s.water_g : 'g'}"
+                        class="flex-1 min-w-0 w-0 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent">
+                    <button type="button" class="hc-step-plus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">+</button>
+                </div>
+                <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border w-full">
+                    <button type="button" class="hc-step-minus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">−</button>
                     <input type="number" id="hc-log-step-dur-${s.step_order}" min="0" max="600"
                         placeholder="${s.duration_s != null ? s.duration_s : '초'}"
-                        class="w-12 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent">
-                    <button type="button" class="hc-step-plus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">+</button>
+                        class="flex-1 min-w-0 w-0 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent">
+                    <button type="button" class="hc-step-plus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">+</button>
                 </div>
             </div>`;
         }).join('');
 
         inputHtml = `
         <div id="hc-brew-log-input" class="${_brewLogExpanded ? '' : 'hidden'} mt-3 space-y-3">
-            ${steps.length ? `<div class="space-y-2.5">${stepRows}</div>` : ''}
+            ${steps.length ? `<div class="grid gap-2" style="grid-template-columns: repeat(${steps.length}, minmax(0, 1fr))">${stepCols}</div>` : ''}
             <div>
                 <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">평가</label>
                 <div id="hc-log-stars" class="flex gap-1">${hcStars(0, true, 'hc-log')}</div>
