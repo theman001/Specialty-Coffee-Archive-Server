@@ -11,6 +11,7 @@ let _versionHistory = [];
 let _ratioChanging = false;
 let _brewLogs = [];               // [{id, version_id, taste_note, overall_rating, brewed_at, steps[]}]
 let _brewLogExpanded = false;
+let _brewLogsVisible = false;
 
 // ── Utilities ────────────────────────────────────────────────────────
 function hcEsc(v) {
@@ -798,6 +799,7 @@ window.openBrewSheet = async function (id) {
         _brewDisplayMode = 'dose';
         _versionHistory = [];
         _brewLogExpanded = false;
+        _brewLogsVisible = false;
         _renderBrewSheet();
         showModal('homecafeBrewSheet');
     } catch (e) {
@@ -1054,16 +1056,32 @@ function _renderBrewLogSection(recipe, cv) {
     return `
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-coffee-border">
         <div class="flex items-center justify-between mb-1">
-            <h4 class="text-sm font-bold text-slate-700 dark:text-coffee-accent">추출 일지</h4>
+            <div class="flex items-center gap-2">
+                <h4 class="text-sm font-bold text-slate-700 dark:text-coffee-accent">추출 일지</h4>
+                <button onclick="window._toggleBrewLogsVisible()" id="hc-brew-logs-toggle-btn"
+                    class="text-xs text-slate-400 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent hover:underline">
+                    ${_brewLogsVisible ? '숨기기 ▴' : '보기 ▾'}
+                </button>
+            </div>
             ${isAdmin() ? `<button onclick="window._toggleBrewLogInput()" id="hc-brew-log-toggle-btn"
                 class="text-xs text-coffee-btn dark:text-coffee-accent hover:underline">
                 ${_brewLogExpanded ? '접기 ▴' : '+ 기록 남기기'}
             </button>` : ''}
         </div>
         ${inputHtml}
-        ${logsHtml}
+        <div id="hc-brew-logs-panel" class="${_brewLogsVisible ? '' : 'hidden'}">
+            ${logsHtml}
+        </div>
     </div>`;
 }
+
+window._toggleBrewLogsVisible = function () {
+    _brewLogsVisible = !_brewLogsVisible;
+    const panel = document.getElementById('hc-brew-logs-panel');
+    const btn = document.getElementById('hc-brew-logs-toggle-btn');
+    if (panel) panel.classList.toggle('hidden', !_brewLogsVisible);
+    if (btn) btn.textContent = _brewLogsVisible ? '숨기기 ▴' : '보기 ▾';
+};
 
 window._toggleBrewLogInput = function () {
     _brewLogExpanded = !_brewLogExpanded;
