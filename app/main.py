@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from .database import (
     create_db_and_tables, get_session, Store, Review, WikiPost, WikiCategory, engine,
     HomeCafeRecipe, HomeCafeRecipeVersion, HomeCafePourStep, HomeCafeEquipment,
+    HomeCafeBrewLog, HomeCafeBrewLogStep,
 )
 from .utils import search_naver_local, extract_flavor_color
 from .auth import get_current_user, require_admin
@@ -109,6 +110,20 @@ class EquipmentCreateRequest(BaseModel):
     equipment_type: str = Field(..., pattern="^(grinder|dripper)$")
     name: str = Field(..., min_length=1, max_length=100)
     max_clicks: Optional[int] = Field(None, ge=1, le=500)
+
+
+class BrewLogStepInput(BaseModel):
+    step_order: int
+    label: Optional[str] = Field(None, max_length=50)
+    actual_water_g: Optional[float] = Field(None, ge=0, le=500)
+    actual_duration_s: Optional[int] = Field(None, ge=0, le=600)
+
+
+class BrewLogCreateRequest(BaseModel):
+    version_id: int
+    taste_note: Optional[str] = Field(None, max_length=1000)
+    overall_rating: Optional[int] = Field(None, ge=1, le=5)
+    steps: List[BrewLogStepInput] = Field(default=[])
 
 
 def error_response(status_code: int, code: str, message: str):
@@ -194,7 +209,7 @@ def _ensure_legacy_columns():
             wiki_cols = {row[1] for row in conn.execute(text("PRAGMA table_info('wikipost')")).fetchall()}
             if "category_id" not in wiki_cols:
                 conn.execute(text("ALTER TABLE wikipost ADD COLUMN category_id INTEGER"))
-            for tbl in ["homecaferecipe", "homecaferecipeversion", "homecafepourstep", "homecafeequipment"]:
+            for tbl in ["homecaferecipe", "homecaferecipeversion", "homecafepourstep", "homecafeequipment", "homecafebrewlog", "homecafebrewlogstep"]:
                 try:
                     conn.execute(text(f"SELECT 1 FROM {tbl} LIMIT 1"))
                 except Exception:
@@ -1240,5 +1255,100 @@ def delete_equipment(
     if not eq:
         return error_response(404, "NOT_FOUND", "장비를 찾을 수 없습니다.")
     session.delete(eq)
+    session.commit()
+    return {"status": "success"}
+
+
+# ── Brew log helpers & endpoints ──────────────────────────────────────
+
+def _serialize_brew_log(log: HomeCafeBrewLog, session: Session) -> dict:
+    steps = session.exec(
+        select(HomeCafeBrewLogStep)
+        .where(HomeCafeBrewLogStep.log_id == log.id)
+        .order_by(HomeCafeBrewLogStep.step_order)
+    ).all()
+    return {
+        "id": log.id,
+        "recipe_id": log.recipe_id,
+        "version_id": log.version_id,
+        "taste_note": log.taste_note,
+        "overall_rating": log.overall_rating,
+        "brewed_at": log.brewed_at.isoformat() if log.brewed_at else None,
+        "steps": [
+            {
+                "id": s.id,
+                "step_order": s.step_order,
+                "label": s.label,
+                "actual_water_g": s.actual_water_g,
+                "actual_duration_s": s.actual_duration_s,
+            }
+            for s in steps
+        ],
+    }
+
+
+@app.get("/api/homecafe/recipes/{recipe_id}/logs")
+def list_brew_logs(recipe_id: int, session: Session = Depends(get_session)):
+    recipe = session.get(HomeCafeRecipe, recipe_id)
+    if not recipe:
+        return error_response(404, "RECIPE_NOT_FOUND", "레시피를 찾을 수 없습니다.")
+    logs = session.exec(
+        select(HomeCafeBrewLog)
+        .where(HomeCafeBrewLog.recipe_id == recipe_id)
+        .order_by(HomeCafeBrewLog.brewed_at.desc())
+    ).all()
+    return [_serialize_brew_log(log, session) for log in logs]
+
+
+@app.post("/api/homecafe/recipes/{recipe_id}/logs")
+def create_brew_log(
+    recipe_id: int,
+    body: BrewLogCreateRequest,
+    session: Session = Depends(get_session),
+    admin=Depends(require_admin),
+):
+    recipe = session.get(HomeCafeRecipe, recipe_id)
+    if not recipe:
+        return error_response(404, "RECIPE_NOT_FOUND", "레시피를 찾을 수 없습니다.")
+    version = session.get(HomeCafeRecipeVersion, body.version_id)
+    if not version or version.recipe_id != recipe_id:
+        return error_response(404, "VERSION_NOT_FOUND", "버전을 찾을 수 없습니다.")
+    log = HomeCafeBrewLog(
+        recipe_id=recipe_id,
+        version_id=body.version_id,
+        taste_note=body.taste_note,
+        overall_rating=body.overall_rating,
+    )
+    session.add(log)
+    session.flush()
+    for step_in in body.steps:
+        session.add(HomeCafeBrewLogStep(
+            log_id=log.id,
+            step_order=step_in.step_order,
+            label=step_in.label,
+            actual_water_g=step_in.actual_water_g,
+            actual_duration_s=step_in.actual_duration_s,
+        ))
+    session.commit()
+    session.refresh(log)
+    return _serialize_brew_log(log, session)
+
+
+@app.delete("/api/homecafe/recipes/{recipe_id}/logs/{log_id}")
+def delete_brew_log(
+    recipe_id: int,
+    log_id: int,
+    session: Session = Depends(get_session),
+    admin=Depends(require_admin),
+):
+    log = session.get(HomeCafeBrewLog, log_id)
+    if not log or log.recipe_id != recipe_id:
+        return error_response(404, "NOT_FOUND", "추출 기록을 찾을 수 없습니다.")
+    steps = session.exec(
+        select(HomeCafeBrewLogStep).where(HomeCafeBrewLogStep.log_id == log_id)
+    ).all()
+    for s in steps:
+        session.delete(s)
+    session.delete(log)
     session.commit()
     return {"status": "success"}

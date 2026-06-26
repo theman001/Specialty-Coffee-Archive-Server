@@ -9,6 +9,8 @@ let _brewDisplayMode = 'dose';
 let _brewViewVersionId = null;
 let _versionHistory = [];
 let _ratioChanging = false;
+let _brewLogs = [];               // [{id, version_id, taste_note, overall_rating, brewed_at, steps[]}]
+let _brewLogExpanded = false;
 
 // ── Utilities ────────────────────────────────────────────────────────
 function hcEsc(v) {
@@ -788,10 +790,14 @@ window.deleteVersion = function (recipeId, verId) {
 // ── Brew sheet ────────────────────────────────────────────────────────
 window.openBrewSheet = async function (id) {
     try {
-        _brewSheetRecipe = await window.fetchJson(`/api/homecafe/recipes/${id}`);
+        [_brewSheetRecipe, _brewLogs] = await Promise.all([
+            window.fetchJson(`/api/homecafe/recipes/${id}`),
+            window.fetchJson(`/api/homecafe/recipes/${id}/logs`),
+        ]);
         _brewViewVersionId = null;
         _brewDisplayMode = 'dose';
         _versionHistory = [];
+        _brewLogExpanded = false;
         _renderBrewSheet();
         showModal('homecafeBrewSheet');
     } catch (e) {
@@ -918,6 +924,7 @@ function _renderBrewSheet() {
             ${paramRows.join('')}
         </div>
         ${stepsHtml}
+        ${_renderBrewLogSection(recipe, cv)}
         ${resultHtml}
         ${historyBtnLabel ? `
         <div class="mt-6 pt-4 border-t border-slate-200 dark:border-coffee-border text-center">
@@ -929,6 +936,9 @@ function _renderBrewSheet() {
     if (isAdmin() && isCurrentVersion) {
         _bindBrewStarRating();
     }
+    if (isAdmin() && _brewLogExpanded) {
+        _bindStarRating('hc-log-stars', 'hc-log-rating');
+    }
 }
 
 function _paramRow(label, val) {
@@ -937,6 +947,179 @@ function _paramRow(label, val) {
         <span class="font-medium text-slate-800 dark:text-coffee-accent">${hcEsc(val)}</span>
     </div>`;
 }
+
+// ── Brew log section ──────────────────────────────────────────────────
+function _renderBrewLogSection(recipe, cv) {
+    const steps = cv?.pour_steps || [];
+
+    // Input form (admin only)
+    let inputHtml = '';
+    if (isAdmin()) {
+        const stepRows = steps.map(s => {
+            const refParts = [
+                s.water_g != null ? s.water_g + 'g' : null,
+                s.duration_s != null ? s.duration_s + 's' : null,
+            ].filter(Boolean).join(' / ');
+            return `
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs text-slate-500 dark:text-coffee-muted shrink-0 w-24">
+                    ${hcEsc(s.label || s.step_order + '차 푸어')}
+                    ${refParts ? `<span class="block text-[10px] text-slate-400 dark:text-coffee-muted">${hcEsc(refParts)}</span>` : ''}
+                </span>
+                <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border shrink-0">
+                    <button type="button" class="hc-step-minus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">−</button>
+                    <input type="number" id="hc-log-step-water-${s.step_order}" min="0" max="500" step="0.5"
+                        placeholder="${s.water_g != null ? s.water_g : '물(g)'}"
+                        class="w-14 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent">
+                    <button type="button" class="hc-step-plus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">+</button>
+                </div>
+                <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border shrink-0">
+                    <button type="button" class="hc-step-minus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">−</button>
+                    <input type="number" id="hc-log-step-dur-${s.step_order}" min="0" max="600"
+                        placeholder="${s.duration_s != null ? s.duration_s : '초'}"
+                        class="w-12 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent">
+                    <button type="button" class="hc-step-plus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">+</button>
+                </div>
+            </div>`;
+        }).join('');
+
+        inputHtml = `
+        <div id="hc-brew-log-input" class="${_brewLogExpanded ? '' : 'hidden'} mt-3 space-y-3">
+            ${steps.length ? `<div class="space-y-2.5">${stepRows}</div>` : ''}
+            <div>
+                <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">평가</label>
+                <div id="hc-log-stars" class="flex gap-1">${hcStars(0, true, 'hc-log')}</div>
+                <input type="hidden" id="hc-log-rating">
+            </div>
+            <textarea id="hc-log-taste-note" rows="2" maxlength="1000"
+                placeholder="맛 기록 (산미, 바디감, 단맛, 개선점 등...)"
+                class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm resize-none outline-none focus:ring-2 focus:ring-coffee-btn"></textarea>
+            <button onclick="window._saveBrewLog(${recipe.id})"
+                class="w-full py-2 rounded-xl bg-coffee-btn text-white text-sm font-medium hover:bg-coffee-btnHover transition-colors">
+                추출 기록 저장
+            </button>
+        </div>`;
+    }
+
+    // Past logs list
+    let logsHtml = '';
+    if (_brewLogs.length > 0) {
+        logsHtml = `<div class="mt-3 space-y-2">
+        ${_brewLogs.map(log => {
+            const dateStr = new Date(log.brewed_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const stars = log.overall_rating ? hcStars(log.overall_rating, false, '') : '';
+
+            const stepDiffs = log.steps.map(ls => {
+                const ref = steps.find(s => s.step_order === ls.step_order);
+                const label = hcEsc(ls.label || `${ls.step_order}차`);
+
+                const parts = [];
+                if (ls.actual_water_g != null) {
+                    const diff = ref?.water_g != null ? ls.actual_water_g - ref.water_g : null;
+                    const cls = diff === null ? '' : Math.abs(diff) <= (ref.water_g || 1) * 0.1 ? 'text-green-500 dark:text-green-400' : Math.abs(diff) <= (ref.water_g || 1) * 0.25 ? 'text-amber-500 dark:text-amber-400' : 'text-red-400';
+                    const diffStr = diff !== null ? `<span class="${cls}">(${diff >= 0 ? '+' : ''}${diff})</span>` : '';
+                    parts.push(`${ls.actual_water_g}g${diffStr}`);
+                }
+                if (ls.actual_duration_s != null) {
+                    const diff = ref?.duration_s != null ? ls.actual_duration_s - ref.duration_s : null;
+                    const cls = diff === null ? '' : Math.abs(diff) <= 3 ? 'text-green-500 dark:text-green-400' : Math.abs(diff) <= 8 ? 'text-amber-500 dark:text-amber-400' : 'text-red-400';
+                    const diffStr = diff !== null ? `<span class="${cls}">(${diff >= 0 ? '+' : ''}${diff}s)</span>` : '';
+                    parts.push(`${ls.actual_duration_s}s${diffStr}`);
+                }
+                return parts.length ? `<span class="mr-2 whitespace-nowrap"><span class="text-slate-500 dark:text-coffee-muted">${label}</span> ${parts.join(' / ')}</span>` : '';
+            }).filter(Boolean).join('');
+
+            return `
+            <div class="p-3 rounded-xl border border-slate-200 dark:border-coffee-border">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs text-slate-500 dark:text-coffee-muted">${dateStr}</span>
+                        ${stars ? `<span class="text-sm">${stars}</span>` : ''}
+                    </div>
+                    ${isAdmin() ? `<button onclick="window._deleteBrewLog(${recipe.id}, ${log.id})" class="text-[10px] text-red-400 hover:text-red-500">삭제</button>` : ''}
+                </div>
+                ${log.taste_note ? `<p class="text-sm text-slate-600 dark:text-coffee-text mb-1.5">${hcEsc(log.taste_note)}</p>` : ''}
+                ${stepDiffs ? `<div class="text-xs leading-6 flex flex-wrap">${stepDiffs}</div>` : ''}
+            </div>`;
+        }).join('')}
+        </div>`;
+    } else if (!isAdmin()) {
+        logsHtml = '<p class="text-xs text-slate-400 dark:text-coffee-muted mt-2">추출 기록이 없습니다.</p>';
+    }
+
+    return `
+    <div class="mt-4 pt-4 border-t border-slate-200 dark:border-coffee-border">
+        <div class="flex items-center justify-between mb-1">
+            <h4 class="text-sm font-bold text-slate-700 dark:text-coffee-accent">추출 일지</h4>
+            ${isAdmin() ? `<button onclick="window._toggleBrewLogInput()" id="hc-brew-log-toggle-btn"
+                class="text-xs text-coffee-btn dark:text-coffee-accent hover:underline">
+                ${_brewLogExpanded ? '접기 ▴' : '+ 기록 남기기'}
+            </button>` : ''}
+        </div>
+        ${inputHtml}
+        ${logsHtml}
+    </div>`;
+}
+
+window._toggleBrewLogInput = function () {
+    _brewLogExpanded = !_brewLogExpanded;
+    const panel = document.getElementById('hc-brew-log-input');
+    const btn = document.getElementById('hc-brew-log-toggle-btn');
+    if (panel) panel.classList.toggle('hidden', !_brewLogExpanded);
+    if (btn) btn.textContent = _brewLogExpanded ? '접기 ▴' : '+ 기록 남기기';
+    if (_brewLogExpanded) _bindStarRating('hc-log-stars', 'hc-log-rating');
+};
+
+window._saveBrewLog = async function (recipeId) {
+    window.requireAdminAccess(async () => {
+        const cv = _getDisplayVersion();
+        if (!cv?.id) { alert('버전 정보를 찾을 수 없습니다.'); return; }
+
+        const steps = (cv.pour_steps || []).map(s => ({
+            step_order: s.step_order,
+            label: s.label || null,
+            actual_water_g: parseFloat(document.getElementById(`hc-log-step-water-${s.step_order}`)?.value) || null,
+            actual_duration_s: parseInt(document.getElementById(`hc-log-step-dur-${s.step_order}`)?.value) || null,
+        }));
+
+        const tasteNote = document.getElementById('hc-log-taste-note')?.value?.trim() || null;
+        const rating = parseInt(document.getElementById('hc-log-rating')?.value) || null;
+
+        const hasData = tasteNote || rating || steps.some(s => s.actual_water_g != null || s.actual_duration_s != null);
+        if (!hasData) { alert('기록할 내용을 입력해주세요.'); return; }
+
+        const saveBtn = document.querySelector(`#hc-brew-log-input button[onclick*="_saveBrewLog"]`);
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
+
+        try {
+            const newLog = await window.postJson(`/api/homecafe/recipes/${recipeId}/logs`, {
+                version_id: cv.id,
+                taste_note: tasteNote,
+                overall_rating: rating,
+                steps,
+            });
+            _brewLogs.unshift(newLog);
+            _brewLogExpanded = false;
+            _renderBrewSheet();
+        } catch (e) {
+            alert('저장 실패: ' + e.message);
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '추출 기록 저장'; }
+        }
+    });
+};
+
+window._deleteBrewLog = function (recipeId, logId) {
+    window.requireAdminAccess(async () => {
+        if (!confirm('이 추출 기록을 삭제할까요?')) return;
+        try {
+            await window.fetchJson(`/api/homecafe/recipes/${recipeId}/logs/${logId}`, { method: 'DELETE' });
+            _brewLogs = _brewLogs.filter(l => l.id !== logId);
+            _renderBrewSheet();
+        } catch (e) {
+            alert('삭제 실패: ' + e.message);
+        }
+    });
+};
 
 window.switchDisplayMode = function (mode) {
     _brewDisplayMode = mode;

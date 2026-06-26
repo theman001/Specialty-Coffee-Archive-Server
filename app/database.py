@@ -103,6 +103,24 @@ class HomeCafeEquipment(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class HomeCafeBrewLog(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    recipe_id: int = Field(foreign_key="homecaferecipe.id", index=True)
+    version_id: int = Field(foreign_key="homecaferecipeversion.id", index=True)
+    taste_note: Optional[str] = Field(default=None, max_length=1000)
+    overall_rating: Optional[int] = Field(default=None)
+    brewed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class HomeCafeBrewLogStep(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    log_id: int = Field(foreign_key="homecafebrewlog.id", index=True)
+    step_order: int
+    label: Optional[str] = Field(default=None, max_length=50)
+    actual_water_g: Optional[float] = None
+    actual_duration_s: Optional[int] = None
+
+
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
