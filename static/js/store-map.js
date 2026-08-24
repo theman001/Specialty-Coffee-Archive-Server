@@ -6,7 +6,11 @@ window.storeMapState = {
     currentView: 'map',
     mapSidebarHiddenMobile: false,
     feedCache: [],
+    reviewsById: {},
 };
+
+// Per-review TastingForm instances for the inline "수정" edit UI, keyed by review id.
+const _reviewEditForms = {};
 
 function sortStoresForList(stores) {
     const rank = (wish, hasReviews) => {
@@ -266,6 +270,22 @@ function buildNaverMapLink(store) {
     return `https://map.naver.com/p/search/${keyword}`;
 }
 
+function renderLinkedRecipeBadges(linkedRecipes) {
+    const arr = Array.isArray(linkedRecipes) ? linkedRecipes.filter(Boolean) : [];
+    if (!arr.length) return '';
+    return `<div class="mt-1 flex flex-wrap gap-1.5">${arr.map((rec) => {
+        const label = `${escapeHtml(rec.recipe_name || '')}${rec.version_number ? ` v${rec.version_number}` : ''}`;
+        return `<button type="button" onclick="window.switchView('homecafe');window.openBrewSheet(${rec.recipe_id})" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:border-amber-400 transition-colors">☕ ${label}</button>`;
+    }).join('')}</div>`;
+}
+
+// Tags not representable by the TastingForm chip UI (i.e. not in its fixed vocab).
+// Used to prefill the review-edit "추가 태그" field with only what would otherwise be lost.
+function customTagsOf(tags) {
+    const vocab = window.TASTING_FORM_TAG_VOCAB || [];
+    return Array.isArray(tags) ? tags.filter((t) => t && !vocab.includes(t)) : [];
+}
+
 function renderTagChips(tags) {
     const arr = Array.isArray(tags) ? tags.filter(Boolean) : [];
     if (!arr.length) return '';
@@ -372,25 +392,6 @@ function renderReviewContent(r) {
     return `<p class="text-sm text-slate-600 dark:text-coffee-text whitespace-pre-wrap leading-relaxed">${escapeHtml(r.content)}</p>`;
 }
 
-function structuredToEditText(d) {
-    const lines = [];
-    if (d.mode) lines.push(d.mode === 'ice' ? '[아이스]' : '[핫]');
-    if (d.cafe) lines.push('카페: ' + d.cafe);
-    if (d.origin) lines.push('원산지: ' + d.origin);
-    if (d.roast) lines.push('로스팅: ' + d.roast);
-    const at = (d.aroma && d.aroma.tags || []).join(', ');
-    if (at) lines.push('향: ' + at);
-    if (d.aroma && d.aroma.note) lines.push('향 메모: ' + d.aroma.note);
-    const ft = (d.flavor && d.flavor.tags || []).join(', ');
-    if (ft) lines.push('맛: ' + ft);
-    if (d.flavor && d.flavor.note) lines.push('맛 메모: ' + d.flavor.note);
-    if (d.overall && d.overall.stars) lines.push('별점: ' + '★'.repeat(d.overall.stars));
-    if (d.overall && d.overall.summary) lines.push('총평: ' + d.overall.summary);
-    if (d.overall && d.overall.repeat) lines.push('재방문: ' + d.overall.repeat);
-    if (d.overall && d.overall.note) lines.push(d.overall.note);
-    return lines.join('\n');
-}
-
 function renderReviewThumbsRow(r) {
     const urls = [r.front_card_path, r.back_card_path].filter(Boolean);
     if (!urls.length) return '';
@@ -452,10 +453,8 @@ window.openStoreDetail = async function(store) {
     const reviews = await window.fetchJson(`/api/stores/${store.id}/reviews`);
     const isAdmin = typeof USER_ROLE !== 'undefined' && USER_ROLE === 'admin';
     const dropSvg = `<svg class="w-6 h-6 text-slate-300 dark:text-coffee-border group-hover:text-coffee-btn transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>`;
+    reviews.forEach((r) => { window.storeMapState.reviewsById[r.id] = r; });
     reviewsList.innerHTML = reviews.length ? reviews.map(r => {
-        let parsedV2 = null;
-        try { const p = JSON.parse(r.content); if (p && p._v === 2) parsedV2 = p; } catch(e) {}
-        const editContent = parsedV2 ? structuredToEditText(parsedV2) : r.content;
         return `
         <div class="bg-slate-100 dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-white/10 min-w-0"
              data-review-id="${r.id}"
@@ -463,6 +462,7 @@ window.openStoreDetail = async function(store) {
              data-back="${r.back_card_path ? escapeHtml(r.back_card_path) : ''}">
             <div class="review-view-${r.id}">
                 <h4 class="font-bold text-slate-800 dark:text-coffee-accent text-sm mb-2">${escapeHtml(r.bean_name)}</h4>
+                ${renderLinkedRecipeBadges(r.linked_recipes)}
                 ${renderTagChips(r.tags)}
                 ${renderReviewContent(r)}
                 ${renderReviewThumbsRow(r)}
@@ -472,17 +472,10 @@ window.openStoreDetail = async function(store) {
                 </div>` : ''}
             </div>
             <div class="review-edit-${r.id} hidden space-y-4 mt-3 pt-3 border-t border-slate-200/80 dark:border-white/10">
+                <div id="tf-edit-${r.id}"></div>
                 <div>
-                    <label class="block text-[10px] font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">원두 이름</label>
-                    <input id="edit-bean-${r.id}" type="text" value="${escapeHtml(r.bean_name)}" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">테이스팅 노트</label>
-                    <textarea id="edit-content-${r.id}" rows="4" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm resize-none">${escapeHtml(editContent)}</textarea>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">태그 (쉼표 구분)</label>
-                    <input id="edit-tags-${r.id}" type="text" value="${escapeHtml((r.tags || []).join(', '))}" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm">
+                    <label class="block text-[10px] font-semibold text-slate-500 dark:text-coffee-muted uppercase tracking-wider mb-1">추가 태그 (직접 입력, 쉼표 구분)</label>
+                    <input id="edit-tags-extra-${r.id}" type="text" value="${escapeHtml(customTagsOf(r.tags).join(', '))}" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border text-sm" placeholder="위 향/맛 태그에 없는 것만 직접 추가하세요">
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="space-y-2">
@@ -566,6 +559,15 @@ window.startEditReview = function(reviewId) {
     const card = document.querySelector(`[data-review-id="${reviewId}"]`);
     if (v) v.classList.add('hidden');
     if (ed) ed.classList.remove('hidden');
+
+    const review = window.storeMapState.reviewsById[reviewId];
+    if (review) {
+        const formInstance = window.createTastingForm();
+        formInstance.init(`tf-edit-${reviewId}`);
+        formInstance.populate(review);
+        _reviewEditForms[reviewId] = formInstance;
+    }
+
     ['front', 'back'].forEach((side) => {
         const isFront = side === 'front';
         const url = card && card.getAttribute(isFront ? 'data-front' : 'data-back');
@@ -586,6 +588,7 @@ window.startEditReview = function(reviewId) {
 window.cancelEditReview = function(reviewId) {
     const v = document.querySelector(`.review-view-${reviewId}`);
     const ed = document.querySelector(`.review-edit-${reviewId}`);
+    delete _reviewEditForms[reviewId];
     resetEditReviewImagePreview(reviewId, 'front');
     resetEditReviewImagePreview(reviewId, 'back');
     if (v) v.classList.remove('hidden');
@@ -594,16 +597,28 @@ window.cancelEditReview = function(reviewId) {
 
 window.saveEditReview = async function(reviewId, storeId) {
     window.requireAdminAccess(async () => {
+        const formInstance = _reviewEditForms[reviewId];
+        if (!formInstance) { alert('편집 폼을 찾을 수 없습니다. 다시 시도해주세요.'); return; }
+        const { bean_name, content, tags } = formInstance.getData();
+
+        // Merge chip-selected tags with any freeform extras the user typed (dedup, order-preserving).
+        const extraRaw = document.getElementById(`edit-tags-extra-${reviewId}`)?.value || '';
+        const chipTags = tags ? tags.split(',').map((t) => t.trim()).filter(Boolean) : [];
+        const extraTags = extraRaw.split(',').map((t) => t.trim().replace(/^#/, '')).filter(Boolean);
+        const mergedTags = [...chipTags];
+        extraTags.forEach((t) => { if (!mergedTags.includes(t)) mergedTags.push(t); });
+
         const fd = new FormData();
-        fd.append('bean_name', document.getElementById(`edit-bean-${reviewId}`).value);
-        fd.append('content', document.getElementById(`edit-content-${reviewId}`).value);
-        fd.append('tags', document.getElementById(`edit-tags-${reviewId}`).value);
+        fd.append('bean_name', bean_name);
+        fd.append('content', content);
+        fd.append('tags', mergedTags.join(', '));
         const ff = document.getElementById(`edit-front-${reviewId}`);
         const bf = document.getElementById(`edit-back-${reviewId}`);
         if (ff && ff.files[0]) fd.append('front_image', ff.files[0]);
         if (bf && bf.files[0]) fd.append('back_image', bf.files[0]);
         try {
             await window.patchForm(`/api/reviews/${reviewId}`, fd);
+            delete _reviewEditForms[reviewId];
             await window.loadStores();
             const st = window.storeMapState.storesCache.find((s) => Number(s.id) === Number(storeId)) || window.storeMapState.currentStore;
             if (st && Number(st.id) === Number(storeId)) await window.openStoreDetail(st);

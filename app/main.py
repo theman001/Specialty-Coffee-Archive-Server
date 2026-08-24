@@ -79,7 +79,8 @@ class PourStepInput(BaseModel):
 
 
 class HomeCafeRecipeCreateRequest(BaseModel):
-    bean_name: str = Field(..., max_length=200)
+    name: str = Field(..., max_length=200)
+    bean_name: Optional[str] = Field(None, max_length=200)
     review_id: Optional[int] = None
     roast_level: Optional[str] = Field(None, max_length=50)
     brew_type: Optional[str] = Field(None, pattern="^(hot|ice)$")
@@ -101,7 +102,7 @@ class HomeCafeRecipeCreateRequest(BaseModel):
 
 
 class HomeCafeRecipeUpdateRequest(HomeCafeRecipeCreateRequest):
-    bean_name: Optional[str] = Field(None, max_length=200)
+    name: Optional[str] = Field(None, max_length=200)
     dripper: Optional[str] = Field(None, max_length=100)
     result_only: bool = False
 
@@ -121,9 +122,22 @@ class BrewLogStepInput(BaseModel):
 
 class BrewLogCreateRequest(BaseModel):
     version_id: int
+    bean_name: Optional[str] = Field(None, max_length=200)
+    roast_level: Optional[str] = Field(None, max_length=50)
+    review_id: Optional[int] = None
     taste_note: Optional[str] = Field(None, max_length=1000)
     overall_rating: Optional[int] = Field(None, ge=1, le=5)
     steps: List[BrewLogStepInput] = Field(default=[])
+
+
+class BrewLogUpdateRequest(BaseModel):
+    bean_name: Optional[str] = Field(None, max_length=200)
+    roast_level: Optional[str] = Field(None, max_length=50)
+    review_id: Optional[int] = None
+    clear_review: bool = False
+    taste_note: Optional[str] = Field(None, max_length=1000)
+    overall_rating: Optional[int] = Field(None, ge=1, le=5)
+    steps: Optional[List[BrewLogStepInput]] = None
 
 
 def error_response(status_code: int, code: str, message: str):
@@ -218,6 +232,23 @@ def _ensure_legacy_columns():
                         _SM.metadata.tables[tbl].create(bind=conn, checkfirst=True)
                     except Exception:
                         pass
+            try:
+                recipe_cols = {row[1] for row in conn.execute(text("PRAGMA table_info('homecaferecipe')")).fetchall()}
+                if "name" not in recipe_cols:
+                    conn.execute(text("ALTER TABLE homecaferecipe ADD COLUMN name TEXT"))
+                    conn.execute(text("UPDATE homecaferecipe SET name = bean_name WHERE name IS NULL"))
+            except Exception:
+                pass
+            try:
+                brewlog_cols = {row[1] for row in conn.execute(text("PRAGMA table_info('homecafebrewlog')")).fetchall()}
+                if "bean_name" not in brewlog_cols:
+                    conn.execute(text("ALTER TABLE homecafebrewlog ADD COLUMN bean_name TEXT"))
+                if "roast_level" not in brewlog_cols:
+                    conn.execute(text("ALTER TABLE homecafebrewlog ADD COLUMN roast_level TEXT"))
+                if "review_id" not in brewlog_cols:
+                    conn.execute(text("ALTER TABLE homecafebrewlog ADD COLUMN review_id INTEGER"))
+            except Exception:
+                pass
     except Exception:
         # no-op for non-sqlite / first-boot race
         pass
@@ -642,6 +673,30 @@ def create_review(
     session.commit()
     return {"status": "success"}
 
+def _get_linked_recipes_for_review(review_id: int, session: Session) -> list:
+    logs = session.exec(
+        select(HomeCafeBrewLog)
+        .where(HomeCafeBrewLog.review_id == review_id)
+        .order_by(HomeCafeBrewLog.brewed_at.desc())
+    ).all()
+    seen = set()
+    out = []
+    for log in logs:
+        if log.recipe_id in seen:
+            continue
+        seen.add(log.recipe_id)
+        recipe = session.get(HomeCafeRecipe, log.recipe_id)
+        version = session.get(HomeCafeRecipeVersion, log.version_id)
+        if not recipe:
+            continue
+        out.append({
+            "recipe_id": recipe.id,
+            "recipe_name": recipe.name or recipe.bean_name,
+            "version_number": version.version_number if version else None,
+        })
+    return out
+
+
 @app.get("/api/stores/{store_id}/reviews")
 def get_store_reviews(store_id: int, session: Session = Depends(get_session)):
     reviews = session.exec(select(Review).where(Review.store_id == store_id)).all()
@@ -654,9 +709,28 @@ def get_store_reviews(store_id: int, session: Session = Depends(get_session)):
             "tags": _tags_to_list(getattr(r, "tags", "")),
             "front_card_path": r.front_card_path,
             "back_card_path": r.back_card_path,
+            "linked_recipes": _get_linked_recipes_for_review(r.id, session),
         }
         for r in reviews
     ]
+
+
+@app.get("/api/reviews/{review_id}")
+def get_review(review_id: int, session: Session = Depends(get_session)):
+    review = session.get(Review, review_id)
+    if not review:
+        return error_response(404, "REVIEW_NOT_FOUND", "Review not found")
+    store = session.get(Store, review.store_id)
+    return {
+        "id": review.id,
+        "store_id": review.store_id,
+        "store_name": store.name if store else None,
+        "bean_name": review.bean_name,
+        "content": review.content,
+        "tags": _tags_to_list(getattr(review, "tags", "")),
+        "front_card_path": review.front_card_path,
+        "back_card_path": review.back_card_path,
+    }
 
 
 @app.patch("/api/reviews/{review_id}")
@@ -878,6 +952,20 @@ def _get_store_name_for_review(review_id: Optional[int], session: Session) -> Op
     return store.name if store else None
 
 
+def _get_review_summary(review_id: Optional[int], session: Session) -> Optional[dict]:
+    if not review_id:
+        return None
+    review = session.get(Review, review_id)
+    if not review:
+        return None
+    store = session.get(Store, review.store_id)
+    return {
+        "review_id": review.id,
+        "bean_name": review.bean_name,
+        "store_name": store.name if store else None,
+    }
+
+
 def _serialize_pour_steps(version_id: int, session: Session) -> list:
     steps = session.exec(
         select(HomeCafePourStep)
@@ -934,8 +1022,17 @@ def _serialize_recipe_with_version(recipe: HomeCafeRecipe, session: Session) -> 
 
     store_name = _get_store_name_for_review(recipe.review_id, session)
 
+    brew_logs = session.exec(
+        select(HomeCafeBrewLog)
+        .where(HomeCafeBrewLog.recipe_id == recipe.id)
+        .order_by(HomeCafeBrewLog.brewed_at.desc())
+    ).all()
+    brew_count = len(brew_logs)
+    last_bean_name = next((l.bean_name for l in brew_logs if l.bean_name), None)
+
     return {
         "id": recipe.id,
+        "name": recipe.name or recipe.bean_name,
         "bean_name": recipe.bean_name,
         "review_id": recipe.review_id,
         "store_name": store_name,
@@ -944,6 +1041,8 @@ def _serialize_recipe_with_version(recipe: HomeCafeRecipe, session: Session) -> 
         "current_version_id": recipe.current_version_id,
         "version_count": version_count,
         "current_version": current_version,
+        "brew_count": brew_count,
+        "last_bean_name": last_bean_name,
         "created_at": recipe.created_at.isoformat() if recipe.created_at else None,
         "updated_at": recipe.updated_at.isoformat() if recipe.updated_at else None,
     }
@@ -1019,7 +1118,8 @@ def create_homecafe_recipe(
     admin=Depends(require_admin),
 ):
     recipe = HomeCafeRecipe(
-        bean_name=payload.bean_name,
+        name=payload.name,
+        bean_name=payload.bean_name or payload.name,
         review_id=payload.review_id,
         roast_level=payload.roast_level,
         brew_type=payload.brew_type,
@@ -1094,8 +1194,12 @@ def update_homecafe_recipe(
         session=session,
     )
 
+    if payload.name is not None:
+        recipe.name = payload.name
     if payload.bean_name is not None:
         recipe.bean_name = payload.bean_name
+    elif payload.name is not None:
+        recipe.bean_name = payload.name
     if payload.review_id is not None:
         recipe.review_id = payload.review_id
     if payload.roast_level is not None:
@@ -1271,6 +1375,10 @@ def _serialize_brew_log(log: HomeCafeBrewLog, session: Session) -> dict:
         "id": log.id,
         "recipe_id": log.recipe_id,
         "version_id": log.version_id,
+        "bean_name": log.bean_name,
+        "roast_level": log.roast_level,
+        "review_id": log.review_id,
+        "linked_review": _get_review_summary(log.review_id, session),
         "taste_note": log.taste_note,
         "overall_rating": log.overall_rating,
         "brewed_at": log.brewed_at.isoformat() if log.brewed_at else None,
@@ -1316,6 +1424,9 @@ def create_brew_log(
     log = HomeCafeBrewLog(
         recipe_id=recipe_id,
         version_id=body.version_id,
+        bean_name=body.bean_name,
+        roast_level=body.roast_level,
+        review_id=body.review_id,
         taste_note=body.taste_note,
         overall_rating=body.overall_rating,
     )
@@ -1329,6 +1440,52 @@ def create_brew_log(
             actual_water_g=step_in.actual_water_g,
             actual_duration_s=step_in.actual_duration_s,
         ))
+    session.commit()
+    session.refresh(log)
+    return _serialize_brew_log(log, session)
+
+
+@app.patch("/api/homecafe/recipes/{recipe_id}/logs/{log_id}")
+def update_brew_log(
+    recipe_id: int,
+    log_id: int,
+    body: BrewLogUpdateRequest,
+    session: Session = Depends(get_session),
+    admin=Depends(require_admin),
+):
+    log = session.get(HomeCafeBrewLog, log_id)
+    if not log or log.recipe_id != recipe_id:
+        return error_response(404, "NOT_FOUND", "추출 기록을 찾을 수 없습니다.")
+
+    if body.bean_name is not None:
+        log.bean_name = body.bean_name
+    if body.roast_level is not None:
+        log.roast_level = body.roast_level
+    if body.clear_review:
+        log.review_id = None
+    elif body.review_id is not None:
+        log.review_id = body.review_id
+    if body.taste_note is not None:
+        log.taste_note = body.taste_note
+    if body.overall_rating is not None:
+        log.overall_rating = body.overall_rating
+
+    if body.steps is not None:
+        existing_steps = session.exec(
+            select(HomeCafeBrewLogStep).where(HomeCafeBrewLogStep.log_id == log_id)
+        ).all()
+        for s in existing_steps:
+            session.delete(s)
+        for step_in in body.steps:
+            session.add(HomeCafeBrewLogStep(
+                log_id=log.id,
+                step_order=step_in.step_order,
+                label=step_in.label,
+                actual_water_g=step_in.actual_water_g,
+                actual_duration_s=step_in.actual_duration_s,
+            ))
+
+    session.add(log)
     session.commit()
     session.refresh(log)
     return _serialize_brew_log(log, session)

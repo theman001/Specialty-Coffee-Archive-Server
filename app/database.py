@@ -55,9 +55,10 @@ class WikiCategory(SQLModel, table=True):
 
 class HomeCafeRecipe(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    bean_name: str = Field(..., max_length=200)
-    review_id: Optional[int] = Field(default=None, index=True)
-    roast_level: Optional[str] = Field(default=None, max_length=50)
+    name: Optional[str] = Field(default=None, max_length=200)
+    bean_name: str = Field(..., max_length=200)  # legacy — kept for NOT NULL compat, no longer bean-specific
+    review_id: Optional[int] = Field(default=None, index=True)  # legacy — unused by new flows
+    roast_level: Optional[str] = Field(default=None, max_length=50)  # legacy — unused by new flows
     brew_type: Optional[str] = Field(default=None, max_length=20)
     current_version_id: Optional[int] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -107,6 +108,9 @@ class HomeCafeBrewLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     recipe_id: int = Field(foreign_key="homecaferecipe.id", index=True)
     version_id: int = Field(foreign_key="homecaferecipeversion.id", index=True)
+    bean_name: Optional[str] = Field(default=None, max_length=200)
+    roast_level: Optional[str] = Field(default=None, max_length=50)
+    review_id: Optional[int] = Field(default=None, index=True)
     taste_note: Optional[str] = Field(default=None, max_length=1000)
     overall_rating: Optional[int] = Field(default=None)
     brewed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -130,26 +130,6 @@ window.initHomeCafe = function () {
         });
     }
 
-    // Bean select
-    const beanSelect = document.getElementById('hc-bean-select');
-    const beanNameInput = document.getElementById('hc-bean-name');
-    if (beanSelect && beanNameInput) {
-        beanSelect.addEventListener('change', () => {
-            const val = beanSelect.value;
-            if (val === 'manual') {
-                beanNameInput.readOnly = false;
-                beanNameInput.value = '';
-                beanNameInput.focus();
-            } else if (val.startsWith('review:')) {
-                const opt = beanOptions.find(o => String(o.review_id) === val.replace('review:', ''));
-                if (opt) {
-                    beanNameInput.value = opt.bean_name;
-                    beanNameInput.readOnly = true;
-                }
-            }
-        });
-    }
-
     // Grind clicks slider
     const grindSlider = document.getElementById('hc-grind-clicks');
     const grindDisplay = document.getElementById('hc-grind-clicks-display');
@@ -308,7 +288,7 @@ async function _autoSaveEquipment(name, type, maxClicks) {
     } catch (_) {}
 }
 
-// ── Bean options ─────────────────────────────────────────────────────
+// ── Bean options (used to link a brew log to an existing store review) ─
 let beanOptions = [];
 async function _loadBeanOptions() {
     try {
@@ -316,11 +296,16 @@ async function _loadBeanOptions() {
     } catch (_) {
         beanOptions = [];
     }
-    const sel = document.getElementById('hc-bean-select');
-    if (!sel) return;
-    sel.innerHTML = beanOptions.map(o =>
-        `<option value="review:${o.review_id}">${hcEsc(o.store_name)} · ${hcEsc(o.bean_name)}</option>`
-    ).join('') + '<option value="manual">✏️ 직접 입력...</option>';
+}
+
+function _reviewLinkSelectHtml(selectId, selectedReviewId) {
+    const opts = beanOptions.map(o =>
+        `<option value="${o.review_id}" ${String(o.review_id) === String(selectedReviewId) ? 'selected' : ''}>${hcEsc(o.store_name)} · ${hcEsc(o.bean_name)}</option>`
+    ).join('');
+    return `<select id="${selectId}" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-xs">
+        <option value="">연결 안 함</option>
+        ${opts}
+    </select>`;
 }
 
 // ── Recipe list ───────────────────────────────────────────────────────
@@ -348,8 +333,10 @@ function _renderRecipeCard(recipe) {
         ? '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300">ICE</span>'
         : '';
 
-    const metaParts = [recipe.store_name, recipe.roast_level].filter(Boolean).map(hcEsc);
-    const metaLine = metaParts.length ? metaParts.join(' · ') + (brewTypeBadge ? ' ' + brewTypeBadge : '') : brewTypeBadge;
+    const usageLine = recipe.last_bean_name
+        ? `최근 원두: ${hcEsc(recipe.last_bean_name)}${recipe.brew_count ? ` · 총 ${recipe.brew_count}회` : ''}`
+        : (recipe.brew_count ? `총 ${recipe.brew_count}회 적용` : '아직 적용 기록 없음');
+    const metaLine = usageLine + (brewTypeBadge ? ' ' + brewTypeBadge : '');
 
     let paramsLine = '', toolsLine = '', stepsLine = '';
     if (cv) {
@@ -385,7 +372,7 @@ function _renderRecipeCard(recipe) {
     <div class="bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2">
         <div>
             ${starsHtml ? `<div class="text-sm mb-1">${starsHtml}</div>` : ''}
-            <h3 class="font-serif font-bold text-lg text-slate-800 dark:text-coffee-accent leading-tight">${hcEsc(recipe.bean_name)}</h3>
+            <h3 class="font-serif font-bold text-lg text-slate-800 dark:text-coffee-accent leading-tight">${hcEsc(recipe.name || recipe.bean_name)}</h3>
             ${metaLine ? `<p class="text-xs text-slate-500 dark:text-coffee-muted mt-0.5 flex items-center gap-1 flex-wrap">${metaLine}</p>` : ''}
         </div>
         ${paramsLine ? `<p class="text-sm text-slate-700 dark:text-coffee-text font-medium">${paramsLine}</p>` : ''}
@@ -411,11 +398,7 @@ window.openRecipeCreateModal = async function () {
     document.getElementById('hc-change-note-section').classList.add('hidden');
     document.getElementById('hcSubmitBtn').textContent = '저장하기';
     _resetWriteForm();
-    await Promise.all([_loadBeanOptions(), _loadEquipment()]);
-    const beanSelect = document.getElementById('hc-bean-select');
-    if (beanSelect) beanSelect.value = 'manual';
-    const beanNameInput = document.getElementById('hc-bean-name');
-    if (beanNameInput) { beanNameInput.readOnly = false; beanNameInput.value = ''; }
+    await _loadEquipment();
     _initEquipmentSelects();
     _initPourSteps([{ step_order: 0, label: '뜸들이기', water_g: null, duration_s: null, memo: null }]);
     showModal('homecafeWriteModal');
@@ -431,7 +414,7 @@ window.openRecipeEditModal = async function (id) {
         let recipe;
         try {
             const [, fetched] = await Promise.all([
-                Promise.all([_loadBeanOptions(), _loadEquipment()]),
+                _loadEquipment(),
                 window.fetchJson(`/api/homecafe/recipes/${id}`),
             ]);
             recipe = fetched;
@@ -457,27 +440,7 @@ function _resetWriteForm() {
 function _prefillWriteForm(recipe) {
     const cv = recipe.current_version;
 
-    // Bean
-    const beanSelect = document.getElementById('hc-bean-select');
-    const beanNameInput = document.getElementById('hc-bean-name');
-    if (recipe.review_id) {
-        const optVal = `review:${recipe.review_id}`;
-        if (beanSelect) {
-            const exists = Array.from(beanSelect.options).some(o => o.value === optVal);
-            if (exists) {
-                beanSelect.value = optVal;
-                if (beanNameInput) { beanNameInput.value = recipe.bean_name; beanNameInput.readOnly = true; }
-            } else {
-                beanSelect.value = 'manual';
-                if (beanNameInput) { beanNameInput.value = recipe.bean_name; beanNameInput.readOnly = false; }
-            }
-        }
-    } else {
-        if (beanSelect) beanSelect.value = 'manual';
-        if (beanNameInput) { beanNameInput.value = recipe.bean_name; beanNameInput.readOnly = false; }
-    }
-
-    _setVal('hc-roast-level', recipe.roast_level);
+    _setVal('hc-recipe-name', recipe.name || recipe.bean_name);
     _setVal('hc-brew-type', recipe.brew_type || 'hot');
 
     if (cv) {
@@ -687,12 +650,11 @@ function _hoverFormRating(val, containerId) {
 async function _onRecipeFormSubmit(e) {
     e.preventDefault();
 
-    const beanNameInput = document.getElementById('hc-bean-name');
-    const beanSelect = document.getElementById('hc-bean-select');
+    const recipeNameInput = document.getElementById('hc-recipe-name');
 
-    if (!beanNameInput?.value?.trim()) {
-        beanNameInput?.focus();
-        alert('원두 이름을 입력해주세요.');
+    if (!recipeNameInput?.value?.trim()) {
+        recipeNameInput?.focus();
+        alert('레시피 이름을 입력해주세요.');
         return;
     }
 
@@ -703,18 +665,13 @@ async function _onRecipeFormSubmit(e) {
         return;
     }
 
-    const beanVal = beanSelect?.value || 'manual';
-    const review_id = beanVal.startsWith('review:') ? parseInt(beanVal.replace('review:', '')) : null;
-
     const ratioSlider = document.getElementById('hc-ratio-n');
     const grindInput = document.getElementById('hc-grind-clicks');
     const ratingHidden = document.getElementById('hc-result-rating');
     const grinderName = _collectGrinderName();
 
     const payload = {
-        bean_name: beanNameInput.value.trim(),
-        review_id,
-        roast_level: document.getElementById('hc-roast-level')?.value || null,
+        name: recipeNameInput.value.trim(),
         brew_type: document.getElementById('hc-brew-type')?.value || null,
         water_temp_c: parseFloat(document.getElementById('hc-water-temp')?.value) || null,
         dose_g: parseFloat(document.getElementById('hc-dose-g')?.value) || null,
@@ -794,6 +751,7 @@ window.openBrewSheet = async function (id) {
         [_brewSheetRecipe, _brewLogs] = await Promise.all([
             window.fetchJson(`/api/homecafe/recipes/${id}`),
             window.fetchJson(`/api/homecafe/recipes/${id}/logs`),
+            _loadBeanOptions(),
         ]);
         _brewViewVersionId = null;
         _brewDisplayMode = 'dose';
@@ -822,7 +780,9 @@ function _renderBrewSheet() {
         ? '<span class="text-xs font-bold text-sky-600 dark:text-sky-400">Ice</span>'
         : '';
 
-    const meta = [recipe.store_name, recipe.roast_level].filter(Boolean).map(hcEsc).join(' · ');
+    const meta = recipe.last_bean_name
+        ? `최근 원두: ${hcEsc(recipe.last_bean_name)}${recipe.brew_count ? ` · 총 ${recipe.brew_count}회` : ''}`
+        : (recipe.brew_count ? `총 ${recipe.brew_count}회 적용` : '');
 
     const doseMode = _brewDisplayMode === 'dose';
     const doseVal = cv && cv.dose_g != null ? `${cv.dose_g} g` : '—';
@@ -913,8 +873,8 @@ function _renderBrewSheet() {
         <div class="pb-4 border-b border-slate-200 dark:border-coffee-border mb-4">
             <div class="flex items-start justify-between gap-2">
                 <div>
-                    <h2 class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent">${hcEsc(recipe.bean_name)}</h2>
-                    <p class="text-sm text-slate-500 dark:text-coffee-muted mt-0.5">${hcEsc(meta)}${meta && brewTypeBadge ? ' · ' : ''}${brewTypeBadge}</p>
+                    <h2 class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent">${hcEsc(recipe.name || recipe.bean_name)}</h2>
+                    <p class="text-sm text-slate-500 dark:text-coffee-muted mt-0.5">${meta}${meta && brewTypeBadge ? ' · ' : ''}${brewTypeBadge}</p>
                     ${!isCurrentVersion && versionLabel ? `<span class="mt-1 inline-block text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">과거 버전 보기: ${versionLabel}</span>` : ''}
                 </div>
                 <button id="btnCloseBrewSheet" onclick="hideModal('homecafeBrewSheet');_brewSheetRecipe=null;_brewViewVersionId=null;" class="text-slate-400 dark:text-coffee-muted hover:text-coffee-btn p-1">
@@ -987,6 +947,24 @@ function _renderBrewLogSection(recipe, cv) {
 
         inputHtml = `
         <div id="hc-brew-log-input" class="${_brewLogExpanded ? '' : 'hidden'} mt-3 space-y-3">
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">원두 이름</label>
+                    <input id="hc-log-bean-name" type="text" maxlength="200" placeholder="예: 에티오피아 예가체프"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-xs outline-none focus:ring-2 focus:ring-coffee-btn">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">배전도</label>
+                    <select id="hc-log-roast-level" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-xs">
+                        <option value="">선택 안 함</option>
+                        <option>라이트</option><option>미디엄 라이트</option><option>미디엄</option><option>미디엄 다크</option><option>다크</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">관련 리뷰 연결 (선택)</label>
+                ${_reviewLinkSelectHtml('hc-log-review-select', null)}
+            </div>
             ${steps.length ? `<div class="grid gap-2" style="grid-template-columns: repeat(${steps.length}, minmax(0, 1fr))">${stepCols}</div>` : ''}
             <div>
                 <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">평가</label>
@@ -1035,14 +1013,28 @@ function _renderBrewLogSection(recipe, cv) {
                 </div>`;
             }).filter(Boolean);
 
+            const linkedReview = log.linked_review;
+            const reviewLinkHtml = linkedReview
+                ? `<button onclick="window._openReviewFromBrewLog(${linkedReview.review_id})" class="text-[11px] text-coffee-btn dark:text-coffee-accent hover:underline">📝 ${hcEsc(linkedReview.store_name || '')} · ${hcEsc(linkedReview.bean_name)}</button>`
+                : '';
+
             return `
             <div class="p-3 rounded-xl border border-slate-200 dark:border-coffee-border">
                 <div class="flex items-center justify-between mb-1">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-xs text-slate-500 dark:text-coffee-muted">${dateStr}</span>
+                        ${log.bean_name ? `<span class="text-xs font-medium text-slate-700 dark:text-coffee-text">${hcEsc(log.bean_name)}</span>` : ''}
                         ${stars ? `<span class="text-sm">${stars}</span>` : ''}
                     </div>
-                    ${isAdmin() ? `<button onclick="window._deleteBrewLog(${recipe.id}, ${log.id})" class="text-[10px] text-red-400 hover:text-red-500">삭제</button>` : ''}
+                    ${isAdmin() ? `<div class="flex items-center gap-2 shrink-0">
+                        <button onclick="window._toggleLogReviewLink(${log.id})" class="text-[10px] text-slate-400 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent">${linkedReview ? '리뷰 변경' : '리뷰 연결'}</button>
+                        <button onclick="window._deleteBrewLog(${recipe.id}, ${log.id})" class="text-[10px] text-red-400 hover:text-red-500">삭제</button>
+                    </div>` : ''}
+                </div>
+                ${reviewLinkHtml ? `<div class="mb-1.5">${reviewLinkHtml}</div>` : ''}
+                <div id="hc-log-review-edit-${log.id}" class="hidden mb-2 flex items-center gap-2">
+                    ${_reviewLinkSelectHtml(`hc-log-review-edit-select-${log.id}`, log.review_id)}
+                    <button onclick="window._saveLogReviewLink(${recipe.id}, ${log.id})" class="shrink-0 px-2 py-1.5 rounded-lg bg-coffee-btn text-white text-[11px]">저장</button>
                 </div>
                 ${log.taste_note ? `<p class="text-sm text-slate-600 dark:text-coffee-text mb-1.5">${hcEsc(log.taste_note)}</p>` : ''}
                 ${stepDiffRows.length ? `<div class="text-xs space-y-1 mt-1">${stepDiffRows.join('')}</div>` : ''}
@@ -1106,8 +1098,12 @@ window._saveBrewLog = async function (recipeId) {
 
         const tasteNote = document.getElementById('hc-log-taste-note')?.value?.trim() || null;
         const rating = parseInt(document.getElementById('hc-log-rating')?.value) || null;
+        const beanName = document.getElementById('hc-log-bean-name')?.value?.trim() || null;
+        const roastLevel = document.getElementById('hc-log-roast-level')?.value || null;
+        const reviewSelVal = document.getElementById('hc-log-review-select')?.value || '';
+        const reviewId = reviewSelVal ? parseInt(reviewSelVal) : null;
 
-        const hasData = tasteNote || rating || steps.some(s => s.actual_water_g != null || s.actual_duration_s != null);
+        const hasData = tasteNote || rating || beanName || roastLevel || reviewId || steps.some(s => s.actual_water_g != null || s.actual_duration_s != null);
         if (!hasData) { alert('기록할 내용을 입력해주세요.'); return; }
 
         const saveBtn = document.querySelector(`#hc-brew-log-input button[onclick*="_saveBrewLog"]`);
@@ -1116,6 +1112,9 @@ window._saveBrewLog = async function (recipeId) {
         try {
             const newLog = await window.postJson(`/api/homecafe/recipes/${recipeId}/logs`, {
                 version_id: cv.id,
+                bean_name: beanName,
+                roast_level: roastLevel,
+                review_id: reviewId,
                 taste_note: tasteNote,
                 overall_rating: rating,
                 steps,
@@ -1141,6 +1140,50 @@ window._deleteBrewLog = function (recipeId, logId) {
             alert('삭제 실패: ' + e.message);
         }
     });
+};
+
+window._toggleLogReviewLink = function (logId) {
+    document.getElementById(`hc-log-review-edit-${logId}`)?.classList.toggle('hidden');
+};
+
+window._saveLogReviewLink = async function (recipeId, logId) {
+    window.requireAdminAccess(async () => {
+        const sel = document.getElementById(`hc-log-review-edit-select-${logId}`);
+        const val = sel?.value || '';
+        try {
+            const updated = await window.patchJson(`/api/homecafe/recipes/${recipeId}/logs/${logId}`, {
+                review_id: val ? parseInt(val) : null,
+                clear_review: !val,
+            });
+            const idx = _brewLogs.findIndex(l => l.id === logId);
+            if (idx !== -1) _brewLogs[idx] = updated;
+            _renderBrewSheet();
+        } catch (e) {
+            alert('저장 실패: ' + e.message);
+        }
+    });
+};
+
+window._openReviewFromBrewLog = async function (reviewId) {
+    try {
+        const review = await window.fetchJson(`/api/reviews/${reviewId}`);
+        // storesCache is populated asynchronously on page load — refetch once if it's not ready yet
+        // rather than falling straight back to the no-map-link alert.
+        if (!window.storeMapState?.storesCache?.length) {
+            await window.loadStores();
+        }
+        const store = window.storeMapState?.storesCache?.find(s => Number(s.id) === Number(review.store_id));
+        if (!store) {
+            alert(`연결된 리뷰: ${review.store_name || ''} · ${review.bean_name}`);
+            return;
+        }
+        hideModal('homecafeBrewSheet');
+        _brewSheetRecipe = null;
+        _brewViewVersionId = null;
+        window.openStoreDetailByList(store);
+    } catch (e) {
+        alert('리뷰 로드 실패: ' + e.message);
+    }
 };
 
 window.switchDisplayMode = function (mode) {

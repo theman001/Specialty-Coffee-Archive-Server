@@ -438,38 +438,20 @@
             <h2 id="hcWriteModalTitle" class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent mb-6">레시피 만들기</h2>
             <form id="homecafeRecipeForm" class="space-y-6">
 
-                <!-- 원두 -->
+                <!-- 레시피 정보 -->
                 <section class="space-y-3">
-                    <h3 class="text-xs font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest">원두</h3>
+                    <h3 class="text-xs font-bold text-slate-400 dark:text-coffee-muted uppercase tracking-widest">레시피 정보</h3>
                     <div>
-                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">원두 선택</label>
-                        <select id="hc-bean-select" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
-                            <option value="manual">✏️ 직접 입력...</option>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">레시피 이름 <span class="text-red-400">*</span></label>
+                        <input id="hc-recipe-name" type="text" maxlength="200" placeholder="예: V60 데일리 3단 푸어" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
+                        <p class="text-[10px] text-slate-400 dark:text-coffee-muted mt-1">원두와 무관하게 반복해서 쓸 추출법의 이름입니다. 어떤 원두로 내렸는지는 '내리기 &gt; 추출 일지'에서 매번 기록합니다.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">추출 방식</label>
+                        <select id="hc-brew-type" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
+                            <option value="hot">Hot</option>
+                            <option value="ice">Ice</option>
                         </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">원두 이름 <span class="text-red-400">*</span></label>
-                        <input id="hc-bean-name" type="text" maxlength="200" placeholder="예: 에티오피아 예가체프 G1" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm outline-none focus:ring-2 focus:ring-coffee-btn">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">배전도</label>
-                            <select id="hc-roast-level" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
-                                <option value="">선택 안 함</option>
-                                <option>라이트</option>
-                                <option>미디엄 라이트</option>
-                                <option>미디엄</option>
-                                <option>미디엄 다크</option>
-                                <option>다크</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-slate-500 dark:text-coffee-muted mb-1">추출 방식</label>
-                            <select id="hc-brew-type" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
-                                <option value="hot">Hot</option>
-                                <option value="ice">Ice</option>
-                            </select>
-                        </div>
                     </div>
                 </section>
 
