@@ -219,7 +219,7 @@ function renderMarkers() {
         const marker = L.marker([store.lat, store.lng], { icon }).addTo(map);
         marker._coffeeStoreId = store.id;
         marker.bindPopup(`<div class="p-2"><h4 class="font-bold">${store.name}</h4><p class="text-xs">${store.address}</p></div>`, { closeButton: false });
-        marker.on('click', () => { window.openStoreDetail(store); window.mapRef.flyTo([store.lat, store.lng], 16); });
+        marker.on('click', () => { window.openStoreDetail(store); window.mapRef.flyTo([store.lat, store.lng], 16, { duration: 0.6, easeLinearity: 0.2 }); });
         marker.on('mouseover', () => marker.openPopup());
         marker.on('mouseout', () => marker.closePopup());
         window.storeMapState.markers.push(marker);
@@ -250,7 +250,7 @@ function renderStoreList() {
 window.openStoreDetailByList = function(store) {
     if (window.storeMapState.currentView !== 'map') window.switchView('map');
     window.openStoreDetail(store);
-    window.mapRef.flyTo([store.lat, store.lng], 16);
+    window.mapRef.flyTo([store.lat, store.lng], 16, { duration: 0.6, easeLinearity: 0.2 });
 };
 
 function escapeHtml(str) {

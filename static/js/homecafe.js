@@ -150,7 +150,7 @@ window.initHomeCafe = function () {
     document.getElementById('hc-pour-steps-container')?.addEventListener('input', _updatePourTotal);
 
     // Global number stepper buttons (delegated — works for static & dynamic inputs)
-    document.addEventListener('click', _onStepperClick);
+    document.addEventListener('pointerdown', _onStepperPointerDown);
 
     // Star rating input in write form
     _bindStarRating('hc-form-stars', 'hc-result-rating');
@@ -159,9 +159,9 @@ window.initHomeCafe = function () {
 };
 
 // ── Stepper button handler ────────────────────────────────────────────
-function _onStepperClick(e) {
-    const btn = e.target.closest('.hc-step-minus, .hc-step-plus');
-    if (!btn) return;
+// Press-and-hold to repeat: a quick tap applies one step; holding down ramps up
+// into a fast repeat ("쫘르륵") until the pointer is released.
+function _applyStep(btn) {
     const wrapper = btn.closest('.hc-stepper');
     if (!wrapper) return;
     const input = wrapper.querySelector('input[type="number"]');
@@ -183,6 +183,39 @@ function _onStepperClick(e) {
     const decimals = step < 1 ? String(step).split('.')[1]?.length || 1 : 0;
     input.value = decimals > 0 ? val.toFixed(decimals) : String(Math.round(val));
     input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function _onStepperPointerDown(e) {
+    if (e.button !== undefined && e.button !== 0) return; // primary mouse button / touch only
+    const btn = e.target.closest('.hc-step-minus, .hc-step-plus');
+    if (!btn) return;
+    e.preventDefault(); // no focus ring, no text selection while holding
+
+    _applyStep(btn);
+
+    let repeatCount = 0;
+    let holdTimer = null;
+    const scheduleNext = () => {
+        // Ramps from a leisurely 130ms down to a floor of 30ms the longer it's held.
+        const interval = Math.max(30, 130 - repeatCount * 8);
+        holdTimer = setTimeout(() => {
+            _applyStep(btn);
+            repeatCount++;
+            scheduleNext();
+        }, interval);
+    };
+    const startDelay = setTimeout(scheduleNext, 400);
+
+    const stop = () => {
+        clearTimeout(startDelay);
+        clearTimeout(holdTimer);
+        document.removeEventListener('pointerup', stop);
+        document.removeEventListener('pointercancel', stop);
+        window.removeEventListener('blur', stop);
+    };
+    document.addEventListener('pointerup', stop);
+    document.addEventListener('pointercancel', stop);
+    window.addEventListener('blur', stop);
 }
 
 // ── Equipment ─────────────────────────────────────────────────────────
@@ -544,18 +577,18 @@ function _renderPourSteps() {
         <div class="hc-step-row flex flex-wrap items-center gap-2 py-2 border-b border-slate-100 dark:border-coffee-border last:border-b-0">
             ${labelCell}
             <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border shrink-0">
-                <button type="button" class="hc-step-minus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">−</button>
+                <button type="button" tabindex="-1" class="hc-step-minus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">−</button>
                 <input type="number" placeholder="물(g)" min="0" max="500" step="0.5"
                     class="hc-step-water w-14 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent"
                     value="${s.water_g != null ? s.water_g : ''}">
-                <button type="button" class="hc-step-plus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">+</button>
+                <button type="button" tabindex="-1" class="hc-step-plus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">+</button>
             </div>
             <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border shrink-0">
-                <button type="button" class="hc-step-minus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">−</button>
+                <button type="button" tabindex="-1" class="hc-step-minus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">−</button>
                 <input type="number" placeholder="초" min="0" max="600"
                     class="hc-step-duration w-12 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent"
                     value="${s.duration_s != null ? s.duration_s : ''}">
-                <button type="button" class="hc-step-plus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">+</button>
+                <button type="button" tabindex="-1" class="hc-step-plus px-1.5 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none">+</button>
             </div>
             <input type="text" placeholder="메모" maxlength="200"
                 class="hc-step-memo flex-1 min-w-[5rem] px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-xs"
@@ -930,18 +963,18 @@ function _renderBrewLogSection(recipe, cv) {
                     ${refParts ? `<div class="text-[10px] text-slate-400 dark:text-coffee-muted">${hcEsc(refParts)}</div>` : '<div class="text-[10px]">&nbsp;</div>'}
                 </div>
                 <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border w-full">
-                    <button type="button" class="hc-step-minus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">−</button>
+                    <button type="button" tabindex="-1" class="hc-step-minus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">−</button>
                     <input type="number" id="hc-log-step-water-${s.step_order}" min="0" max="500" step="0.5"
                         placeholder="${s.water_g != null ? s.water_g : 'g'}"
                         class="flex-1 min-w-0 w-0 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent">
-                    <button type="button" class="hc-step-plus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">+</button>
+                    <button type="button" tabindex="-1" class="hc-step-plus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">+</button>
                 </div>
                 <div class="hc-stepper flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-coffee-border w-full">
-                    <button type="button" class="hc-step-minus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">−</button>
+                    <button type="button" tabindex="-1" class="hc-step-minus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-r border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">−</button>
                     <input type="number" id="hc-log-step-dur-${s.step_order}" min="0" max="600"
                         placeholder="${s.duration_s != null ? s.duration_s : '초'}"
                         class="flex-1 min-w-0 w-0 text-center bg-white dark:bg-coffee-card text-xs outline-none py-1.5 dark:text-coffee-accent">
-                    <button type="button" class="hc-step-plus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">+</button>
+                    <button type="button" tabindex="-1" class="hc-step-plus px-1 py-1.5 bg-slate-50 dark:bg-coffee-card hover:bg-slate-100 dark:hover:bg-coffee-border text-slate-400 dark:text-coffee-muted border-l border-slate-200 dark:border-coffee-border text-sm font-bold leading-none select-none shrink-0">+</button>
                 </div>
             </div>`;
         }).join('');
