@@ -19,6 +19,18 @@ function hcEsc(v) {
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// `name` is the current field; `bean_name` is a pre-migration fallback for old rows.
+function hcRecipeName(recipe) {
+    return recipe.name || recipe.bean_name;
+}
+
+function hcUsageLine(recipe, emptyFallback) {
+    if (recipe.last_bean_name) {
+        return `최근 원두: ${hcEsc(recipe.last_bean_name)}${recipe.brew_count ? ` · 총 ${recipe.brew_count}회` : ''}`;
+    }
+    return recipe.brew_count ? `총 ${recipe.brew_count}회 적용` : emptyFallback;
+}
+
 function hcStars(rating, interactive, idPrefix) {
     if (!rating && !interactive) return '';
     const r = rating || 0;
@@ -366,10 +378,7 @@ function _renderRecipeCard(recipe) {
         ? '<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300">ICE</span>'
         : '';
 
-    const usageLine = recipe.last_bean_name
-        ? `최근 원두: ${hcEsc(recipe.last_bean_name)}${recipe.brew_count ? ` · 총 ${recipe.brew_count}회` : ''}`
-        : (recipe.brew_count ? `총 ${recipe.brew_count}회 적용` : '아직 적용 기록 없음');
-    const metaLine = usageLine + (brewTypeBadge ? ' ' + brewTypeBadge : '');
+    const metaLine = hcUsageLine(recipe, '아직 적용 기록 없음') + (brewTypeBadge ? ' ' + brewTypeBadge : '');
 
     let paramsLine = '', toolsLine = '', stepsLine = '';
     if (cv) {
@@ -405,7 +414,7 @@ function _renderRecipeCard(recipe) {
     <div class="bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2">
         <div>
             ${starsHtml ? `<div class="text-sm mb-1">${starsHtml}</div>` : ''}
-            <h3 class="font-serif font-bold text-lg text-slate-800 dark:text-coffee-accent leading-tight">${hcEsc(recipe.name || recipe.bean_name)}</h3>
+            <h3 class="font-serif font-bold text-lg text-slate-800 dark:text-coffee-accent leading-tight">${hcEsc(hcRecipeName(recipe))}</h3>
             ${metaLine ? `<p class="text-xs text-slate-500 dark:text-coffee-muted mt-0.5 flex items-center gap-1 flex-wrap">${metaLine}</p>` : ''}
         </div>
         ${paramsLine ? `<p class="text-sm text-slate-700 dark:text-coffee-text font-medium">${paramsLine}</p>` : ''}
@@ -473,7 +482,7 @@ function _resetWriteForm() {
 function _prefillWriteForm(recipe) {
     const cv = recipe.current_version;
 
-    _setVal('hc-recipe-name', recipe.name || recipe.bean_name);
+    _setVal('hc-recipe-name', hcRecipeName(recipe));
     _setVal('hc-brew-type', recipe.brew_type || 'hot');
 
     if (cv) {
@@ -813,9 +822,7 @@ function _renderBrewSheet() {
         ? '<span class="text-xs font-bold text-sky-600 dark:text-sky-400">Ice</span>'
         : '';
 
-    const meta = recipe.last_bean_name
-        ? `최근 원두: ${hcEsc(recipe.last_bean_name)}${recipe.brew_count ? ` · 총 ${recipe.brew_count}회` : ''}`
-        : (recipe.brew_count ? `총 ${recipe.brew_count}회 적용` : '');
+    const meta = hcUsageLine(recipe, '');
 
     const doseMode = _brewDisplayMode === 'dose';
     const doseVal = cv && cv.dose_g != null ? `${cv.dose_g} g` : '—';
@@ -907,7 +914,7 @@ function _renderBrewSheet() {
         <div class="pb-4 border-b border-slate-200 dark:border-coffee-border mb-4">
             <div class="flex items-start justify-between gap-2">
                 <div>
-                    <h2 class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent">${hcEsc(recipe.name || recipe.bean_name)}</h2>
+                    <h2 class="text-2xl font-serif font-bold text-slate-800 dark:text-coffee-accent">${hcEsc(hcRecipeName(recipe))}</h2>
                     <p class="text-sm text-slate-500 dark:text-coffee-muted mt-0.5">${meta}${meta && brewTypeBadge ? ' · ' : ''}${brewTypeBadge}</p>
                     ${!isCurrentVersion && versionLabel ? `<span class="mt-1 inline-block text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">과거 버전 보기: ${versionLabel}</span>` : ''}
                 </div>

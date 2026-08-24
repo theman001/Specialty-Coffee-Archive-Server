@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Depends, Request, Form, UploadFile, File, HTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional, List
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -34,16 +33,9 @@ from .auth import get_current_user, require_admin
 
 app = FastAPI(title="Specialty Coffee Archive")
 
-class _NoCacheStaticMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        p = request.url.path
-        if p.startswith("/static/") and (p.endswith(".js") or p.endswith(".css")):
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-            response.headers["Pragma"] = "no-cache"
-        return response
-
-app.add_middleware(_NoCacheStaticMiddleware)
+# Static assets are cache-busted via ?v=N query params in templates/index.html,
+# so the browser's normal query-string caching already invalidates on deploy —
+# no server-side no-cache override needed.
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
@@ -130,14 +122,10 @@ class BrewLogCreateRequest(BaseModel):
     steps: List[BrewLogStepInput] = Field(default=[])
 
 
-class BrewLogUpdateRequest(BaseModel):
-    bean_name: Optional[str] = Field(None, max_length=200)
-    roast_level: Optional[str] = Field(None, max_length=50)
-    review_id: Optional[int] = None
-    clear_review: bool = False
-    taste_note: Optional[str] = Field(None, max_length=1000)
-    overall_rating: Optional[int] = Field(None, ge=1, le=5)
+class BrewLogUpdateRequest(BrewLogCreateRequest):
+    version_id: Optional[int] = None  # unused — a log's version doesn't change on update
     steps: Optional[List[BrewLogStepInput]] = None
+    clear_review: bool = False
 
 
 def error_response(status_code: int, code: str, message: str):
@@ -215,16 +203,17 @@ def _ensure_legacy_columns():
     """
     Lightweight migration for existing SQLite files.
     """
+    legacy_columns = [
+        ("review", "tags", "TEXT"),
+        ("review", "created_at", "TEXT"),
+        ("wikipost", "category_id", "INTEGER"),
+        ("homecaferecipe", "name", "TEXT"),
+        ("homecafebrewlog", "bean_name", "TEXT"),
+        ("homecafebrewlog", "roast_level", "TEXT"),
+        ("homecafebrewlog", "review_id", "INTEGER"),
+    ]
     try:
         with engine.begin() as conn:
-            cols = {row[1] for row in conn.execute(text("PRAGMA table_info('review')")).fetchall()}
-            if "tags" not in cols:
-                conn.execute(text("ALTER TABLE review ADD COLUMN tags TEXT"))
-            if "created_at" not in cols:
-                conn.execute(text("ALTER TABLE review ADD COLUMN created_at TEXT"))
-            wiki_cols = {row[1] for row in conn.execute(text("PRAGMA table_info('wikipost')")).fetchall()}
-            if "category_id" not in wiki_cols:
-                conn.execute(text("ALTER TABLE wikipost ADD COLUMN category_id INTEGER"))
             for tbl in ["homecaferecipe", "homecaferecipeversion", "homecafepourstep", "homecafeequipment", "homecafebrewlog", "homecafebrewlogstep"]:
                 try:
                     conn.execute(text(f"SELECT 1 FROM {tbl} LIMIT 1"))
@@ -234,21 +223,15 @@ def _ensure_legacy_columns():
                         _SM.metadata.tables[tbl].create(bind=conn, checkfirst=True)
                     except Exception:
                         pass
+            for tbl, col, sqltype in legacy_columns:
+                try:
+                    cols = {row[1] for row in conn.execute(text(f"PRAGMA table_info('{tbl}')")).fetchall()}
+                    if col not in cols:
+                        conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {sqltype}"))
+                except Exception:
+                    pass
             try:
-                recipe_cols = {row[1] for row in conn.execute(text("PRAGMA table_info('homecaferecipe')")).fetchall()}
-                if "name" not in recipe_cols:
-                    conn.execute(text("ALTER TABLE homecaferecipe ADD COLUMN name TEXT"))
-                    conn.execute(text("UPDATE homecaferecipe SET name = bean_name WHERE name IS NULL"))
-            except Exception:
-                pass
-            try:
-                brewlog_cols = {row[1] for row in conn.execute(text("PRAGMA table_info('homecafebrewlog')")).fetchall()}
-                if "bean_name" not in brewlog_cols:
-                    conn.execute(text("ALTER TABLE homecafebrewlog ADD COLUMN bean_name TEXT"))
-                if "roast_level" not in brewlog_cols:
-                    conn.execute(text("ALTER TABLE homecafebrewlog ADD COLUMN roast_level TEXT"))
-                if "review_id" not in brewlog_cols:
-                    conn.execute(text("ALTER TABLE homecafebrewlog ADD COLUMN review_id INTEGER"))
+                conn.execute(text("UPDATE homecaferecipe SET name = bean_name WHERE name IS NULL"))
             except Exception:
                 pass
     except Exception:
@@ -676,33 +659,35 @@ def create_review(
     session.commit()
     return {"status": "success"}
 
-def _get_linked_recipes_for_review(review_id: int, session: Session) -> list:
-    logs = session.exec(
-        select(HomeCafeBrewLog)
-        .where(HomeCafeBrewLog.review_id == review_id)
-        .order_by(HomeCafeBrewLog.brewed_at.desc())
-    ).all()
-    seen = set()
-    out = []
-    for log in logs:
-        if log.recipe_id in seen:
-            continue
-        seen.add(log.recipe_id)
-        recipe = session.get(HomeCafeRecipe, log.recipe_id)
-        version = session.get(HomeCafeRecipeVersion, log.version_id)
-        if not recipe:
-            continue
-        out.append({
-            "recipe_id": recipe.id,
-            "recipe_name": recipe.name or recipe.bean_name,
-            "version_number": version.version_number if version else None,
-        })
-    return out
-
-
 @app.get("/api/stores/{store_id}/reviews")
 def get_store_reviews(store_id: int, session: Session = Depends(get_session)):
     reviews = session.exec(select(Review).where(Review.store_id == store_id)).all()
+    review_ids = [r.id for r in reviews]
+
+    # Batch-fetch every brew log/recipe/version touching these reviews in one
+    # round trip each, instead of a query per review (N+1).
+    logs = session.exec(
+        select(HomeCafeBrewLog)
+        .where(HomeCafeBrewLog.review_id.in_(review_ids))
+        .order_by(HomeCafeBrewLog.brewed_at.desc())
+    ).all() if review_ids else []
+    recipe_ids = {log.recipe_id for log in logs}
+    version_ids = {log.version_id for log in logs}
+    recipes_by_id = {rec.id: rec for rec in session.exec(select(HomeCafeRecipe).where(HomeCafeRecipe.id.in_(recipe_ids))).all()} if recipe_ids else {}
+    versions_by_id = {v.id: v for v in session.exec(select(HomeCafeRecipeVersion).where(HomeCafeRecipeVersion.id.in_(version_ids))).all()} if version_ids else {}
+
+    linked_by_review = {}
+    for log in logs:
+        recipe = recipes_by_id.get(log.recipe_id)
+        if not recipe:
+            continue
+        seen = linked_by_review.setdefault(log.review_id, {})
+        seen.setdefault(log.recipe_id, {
+            "recipe_id": recipe.id,
+            "recipe_name": _recipe_display_name(recipe),
+            "version_number": versions_by_id[log.version_id].version_number if log.version_id in versions_by_id else None,
+        })
+
     return [
         {
             "id": r.id,
@@ -713,7 +698,7 @@ def get_store_reviews(store_id: int, session: Session = Depends(get_session)):
             "front_card_path": r.front_card_path,
             "back_card_path": r.back_card_path,
             "created_at": r.created_at.isoformat() if r.created_at else None,
-            "linked_recipes": _get_linked_recipes_for_review(r.id, session),
+            "linked_recipes": list(linked_by_review.get(r.id, {}).values()),
         }
         for r in reviews
     ]
@@ -946,16 +931,6 @@ def delete_wiki_category(category_id: int, session: Session = Depends(get_sessio
 
 # ── HomeCafe helpers ──────────────────────────────────────────────────
 
-def _get_store_name_for_review(review_id: Optional[int], session: Session) -> Optional[str]:
-    if not review_id:
-        return None
-    review = session.get(Review, review_id)
-    if not review:
-        return None
-    store = session.get(Store, review.store_id)
-    return store.name if store else None
-
-
 def _get_review_summary(review_id: Optional[int], session: Session) -> Optional[dict]:
     if not review_id:
         return None
@@ -970,26 +945,27 @@ def _get_review_summary(review_id: Optional[int], session: Session) -> Optional[
     }
 
 
+def _pour_step_dict(s: HomeCafePourStep) -> dict:
+    return {
+        "id": s.id,
+        "step_order": s.step_order,
+        "label": s.label,
+        "water_g": s.water_g,
+        "duration_s": s.duration_s,
+        "memo": s.memo,
+    }
+
+
 def _serialize_pour_steps(version_id: int, session: Session) -> list:
     steps = session.exec(
         select(HomeCafePourStep)
         .where(HomeCafePourStep.version_id == version_id)
         .order_by(HomeCafePourStep.step_order)
     ).all()
-    return [
-        {
-            "id": s.id,
-            "step_order": s.step_order,
-            "label": s.label,
-            "water_g": s.water_g,
-            "duration_s": s.duration_s,
-            "memo": s.memo,
-        }
-        for s in steps
-    ]
+    return [_pour_step_dict(s) for s in steps]
 
 
-def _serialize_version_full(version: HomeCafeRecipeVersion, session: Session) -> dict:
+def _version_dict(version: HomeCafeRecipeVersion, pour_steps: list) -> dict:
     return {
         "id": version.id,
         "version_number": version.version_number,
@@ -1008,8 +984,17 @@ def _serialize_version_full(version: HomeCafeRecipeVersion, session: Session) ->
         "result_rating": version.result_rating,
         "change_note": version.change_note,
         "created_at": version.created_at.isoformat() if version.created_at else None,
-        "pour_steps": _serialize_pour_steps(version.id, session),
+        "pour_steps": pour_steps,
     }
+
+
+def _serialize_version_full(version: HomeCafeRecipeVersion, session: Session) -> dict:
+    return _version_dict(version, _serialize_pour_steps(version.id, session))
+
+
+def _recipe_display_name(recipe: HomeCafeRecipe) -> str:
+    # `name` is the current field; `bean_name` is a pre-migration fallback for old rows.
+    return recipe.name or recipe.bean_name
 
 
 def _serialize_recipe_with_version(recipe: HomeCafeRecipe, session: Session) -> dict:
@@ -1024,22 +1009,21 @@ def _serialize_recipe_with_version(recipe: HomeCafeRecipe, session: Session) -> 
         if cv:
             current_version = _serialize_version_full(cv, session)
 
-    store_name = _get_store_name_for_review(recipe.review_id, session)
-
-    brew_logs = session.exec(
-        select(HomeCafeBrewLog)
-        .where(HomeCafeBrewLog.recipe_id == recipe.id)
+    brew_count = session.exec(
+        select(func.count()).select_from(HomeCafeBrewLog).where(HomeCafeBrewLog.recipe_id == recipe.id)
+    ).one()
+    last_bean_name = session.exec(
+        select(HomeCafeBrewLog.bean_name)
+        .where(HomeCafeBrewLog.recipe_id == recipe.id, HomeCafeBrewLog.bean_name.is_not(None))
         .order_by(HomeCafeBrewLog.brewed_at.desc())
-    ).all()
-    brew_count = len(brew_logs)
-    last_bean_name = next((l.bean_name for l in brew_logs if l.bean_name), None)
+        .limit(1)
+    ).first()
 
     return {
         "id": recipe.id,
-        "name": recipe.name or recipe.bean_name,
+        "name": _recipe_display_name(recipe),
         "bean_name": recipe.bean_name,
         "review_id": recipe.review_id,
-        "store_name": store_name,
         "roast_level": recipe.roast_level,
         "brew_type": recipe.brew_type,
         "current_version_id": recipe.current_version_id,
@@ -1112,7 +1096,68 @@ def list_homecafe_recipes(session: Session = Depends(get_session)):
     recipes = session.exec(
         select(HomeCafeRecipe).order_by(HomeCafeRecipe.updated_at.desc())
     ).all()
-    return [_serialize_recipe_with_version(r, session) for r in recipes]
+    if not recipes:
+        return []
+
+    # _serialize_recipe_with_version issues ~5 queries per recipe (versions, current
+    # version, pour steps, brew count, last bean name) — fine for one recipe, an N+1
+    # for a list. Batch the same data across all recipes in one round trip each.
+    recipe_ids = [r.id for r in recipes]
+    current_version_ids = [r.current_version_id for r in recipes if r.current_version_id]
+
+    version_count_by_recipe = dict(session.exec(
+        select(HomeCafeRecipeVersion.recipe_id, func.count())
+        .where(HomeCafeRecipeVersion.recipe_id.in_(recipe_ids))
+        .group_by(HomeCafeRecipeVersion.recipe_id)
+    ).all())
+
+    current_versions_by_id = {}
+    pour_steps_by_version = {}
+    if current_version_ids:
+        current_versions_by_id = {
+            v.id: v for v in session.exec(
+                select(HomeCafeRecipeVersion).where(HomeCafeRecipeVersion.id.in_(current_version_ids))
+            ).all()
+        }
+        for s in session.exec(
+            select(HomeCafePourStep)
+            .where(HomeCafePourStep.version_id.in_(current_version_ids))
+            .order_by(HomeCafePourStep.step_order)
+        ).all():
+            pour_steps_by_version.setdefault(s.version_id, []).append(_pour_step_dict(s))
+
+    brew_count_by_recipe = dict(session.exec(
+        select(HomeCafeBrewLog.recipe_id, func.count())
+        .where(HomeCafeBrewLog.recipe_id.in_(recipe_ids))
+        .group_by(HomeCafeBrewLog.recipe_id)
+    ).all())
+    last_bean_by_recipe = {}
+    for log in session.exec(
+        select(HomeCafeBrewLog)
+        .where(HomeCafeBrewLog.recipe_id.in_(recipe_ids), HomeCafeBrewLog.bean_name.is_not(None))
+        .order_by(HomeCafeBrewLog.brewed_at.desc())
+    ).all():
+        last_bean_by_recipe.setdefault(log.recipe_id, log.bean_name)
+
+    out = []
+    for r in recipes:
+        cv = current_versions_by_id.get(r.current_version_id) if r.current_version_id else None
+        out.append({
+            "id": r.id,
+            "name": _recipe_display_name(r),
+            "bean_name": r.bean_name,
+            "review_id": r.review_id,
+            "roast_level": r.roast_level,
+            "brew_type": r.brew_type,
+            "current_version_id": r.current_version_id,
+            "version_count": version_count_by_recipe.get(r.id, 0),
+            "current_version": _version_dict(cv, pour_steps_by_version.get(cv.id, [])) if cv else None,
+            "brew_count": brew_count_by_recipe.get(r.id, 0),
+            "last_bean_name": last_bean_by_recipe.get(r.id),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+        })
+    return out
 
 
 @app.post("/api/homecafe/recipes")

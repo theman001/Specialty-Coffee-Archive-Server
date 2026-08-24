@@ -26,3 +26,4 @@ Thumbs.db
 # Temp/Junk files
 tmp.html
 *.log
+.claude/settings.local.json
