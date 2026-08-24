@@ -219,7 +219,7 @@ function renderMarkers() {
         const marker = L.marker([store.lat, store.lng], { icon }).addTo(map);
         marker._coffeeStoreId = store.id;
         marker.bindPopup(`<div class="p-2"><h4 class="font-bold">${store.name}</h4><p class="text-xs">${store.address}</p></div>`, { closeButton: false });
-        marker.on('click', () => { window.openStoreDetail(store); window.mapRef.flyTo([store.lat, store.lng], 16, { duration: 0.6, easeLinearity: 0.2 }); });
+        marker.on('click', () => { window.openStoreDetail(store); focusStoreOnMap(store.lat, store.lng); });
         marker.on('mouseover', () => marker.openPopup());
         marker.on('mouseout', () => marker.closePopup());
         window.storeMapState.markers.push(marker);
@@ -250,7 +250,7 @@ function renderStoreList() {
 window.openStoreDetailByList = function(store) {
     if (window.storeMapState.currentView !== 'map') window.switchView('map');
     window.openStoreDetail(store);
-    window.mapRef.flyTo([store.lat, store.lng], 16, { duration: 0.6, easeLinearity: 0.2 });
+    focusStoreOnMap(store.lat, store.lng);
 };
 
 function escapeHtml(str) {
@@ -260,6 +260,15 @@ function escapeHtml(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+// flyTo() interpolates zoom as a continuous curve, so a pan+zoom-in (e.g. 14 -> 16)
+// crosses every intermediate integer zoom level as a real frame — Leaflet requests and
+// paints a fresh set of tiles at each one, which is what made this animation stutter.
+// setView's zoom transition is a single CSS-transform scale to the destination zoom
+// (one tile fetch at the end), so it stays smooth at this app's city-scale distances.
+function focusStoreOnMap(lat, lng) {
+    window.mapRef.setView([lat, lng], 16, { animate: true, duration: 0.5 });
 }
 
 function formatArchiveDate(iso) {
