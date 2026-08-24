@@ -26,6 +26,7 @@ class Review(SQLModel, table=True):
     tags: Optional[str] = None
     front_card_path: Optional[str] = None
     back_card_path: Optional[str] = None
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class AllowedDevice(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

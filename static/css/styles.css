@@ -288,4 +288,89 @@ html.dark .premium-card p {
     opacity: 0.92;
     pointer-events: none;
   }
+
+  /* 하단 네비가 스크롤로 숨겨지면 토스트도 화면 하단 끝으로 내려감 */
+  #toastContainer {
+    transition: bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  body.mobile-nav-collapsed #toastContainer {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+}
+
+/* Toast notifications */
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastSlideOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(6px) scale(0.98); }
+}
+@keyframes toastProgressShrink {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.toast-anim-in { animation: toastSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.toast-anim-out { animation: toastSlideOut 0.25s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.toast-progress-bar {
+  transform-origin: left;
+  animation-name: toastProgressShrink;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* App-styled tooltip (replaces bare-title browser tooltips) — hover/focus only, so it's inert on touch */
+.tooltip {
+  position: relative;
+}
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: #231811;
+  color: #E5E0C3;
+  border: 1px solid #3A2218;
+  box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 90;
+}
+html:not(.dark) .tooltip::after {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #1e293b;
+}
+.tooltip:hover::after,
+.tooltip:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 0.35s;
+}
+/* Rail buttons (desktop left nav): tooltip to the right so it never gets clipped by the narrow rail */
+.tooltip-right::after {
+  bottom: auto;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+}
+.tooltip-right:hover::after,
+.tooltip-right:focus-visible::after {
+  transform: translateY(-50%) translateX(0);
+}
+/* At lg+ the nav rail already reveals a text label on hover (lg:hover:w-64) — skip the tooltip there
+   so it doesn't float over unrelated content once the button itself has expanded to fill the rail. */
+@media (min-width: 1024px) {
+  .tooltip-right::after {
+    display: none;
+  }
 }

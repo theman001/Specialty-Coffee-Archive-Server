@@ -262,6 +262,13 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+function formatArchiveDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
 function buildNaverMapLink(store) {
     const direct = store && typeof store.naver_map_url === 'string' ? store.naver_map_url.trim() : '';
     if (direct) return direct;
@@ -443,6 +450,7 @@ window.openStoreDetail = async function(store) {
         }
     }
     document.getElementById('detailWishlistIcon').setAttribute('fill', store.is_wishlist ? 'currentColor' : 'none');
+    document.getElementById('detailWishlistBtn')?.setAttribute('data-tip', store.is_wishlist ? '위시리스트에서 빼기' : '위시리스트에 추가');
 
     const reviewsList = document.getElementById('reviewsList');
     reviewsList.innerHTML = '<p class="text-xs text-coffee-400">Loading...</p>';
@@ -461,7 +469,10 @@ window.openStoreDetail = async function(store) {
              data-front="${r.front_card_path ? escapeHtml(r.front_card_path) : ''}"
              data-back="${r.back_card_path ? escapeHtml(r.back_card_path) : ''}">
             <div class="review-view-${r.id}">
-                <h4 class="font-bold text-slate-800 dark:text-coffee-accent text-sm mb-2">${escapeHtml(r.bean_name)}</h4>
+                <div class="flex items-baseline justify-between gap-2 mb-2">
+                    <h4 class="font-bold text-slate-800 dark:text-coffee-accent text-sm">${escapeHtml(r.bean_name)}</h4>
+                    ${formatArchiveDate(r.created_at) ? `<span class="text-[10px] text-slate-400 dark:text-coffee-muted font-mono shrink-0">${formatArchiveDate(r.created_at)}</span>` : ''}
+                </div>
                 ${renderLinkedRecipeBadges(r.linked_recipes)}
                 ${renderTagChips(r.tags)}
                 ${renderReviewContent(r)}
@@ -598,7 +609,7 @@ window.cancelEditReview = function(reviewId) {
 window.saveEditReview = async function(reviewId, storeId) {
     window.requireAdminAccess(async () => {
         const formInstance = _reviewEditForms[reviewId];
-        if (!formInstance) { alert('편집 폼을 찾을 수 없습니다. 다시 시도해주세요.'); return; }
+        if (!formInstance) { window.toastError('편집 폼을 찾을 수 없습니다. 다시 시도해주세요.'); return; }
         const { bean_name, content, tags } = formInstance.getData();
 
         // Merge chip-selected tags with any freeform extras the user typed (dedup, order-preserving).
@@ -624,7 +635,7 @@ window.saveEditReview = async function(reviewId, storeId) {
             if (st && Number(st.id) === Number(storeId)) await window.openStoreDetail(st);
             if (window.storeMapState.currentView === 'feed') window.renderFeed();
         } catch (e) {
-            alert('저장 실패: ' + e.message);
+            window.toastError('저장 실패: ' + e.message);
         }
     });
 };
@@ -636,7 +647,7 @@ window.deleteReview = async function(reviewId, storeId) {
             const res = await fetch(`/api/reviews/${reviewId}`, { method: 'DELETE', credentials: 'same-origin' });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                alert(data.message || '삭제 실패');
+                window.toastError(data.message || '삭제 실패');
                 return;
             }
             await window.loadStores();
@@ -659,7 +670,7 @@ window.deleteReview = async function(reviewId, storeId) {
             }
             if (window.storeMapState.currentView === 'feed') window.renderFeed();
         } catch (e) {
-            alert('삭제 실패: ' + e.message);
+            window.toastError('삭제 실패: ' + e.message);
         }
     });
 };
@@ -677,12 +688,14 @@ window.renderFeed = async function() {
         });
         container.innerHTML = filtered.length ? filtered.map(r => {
             const feedContent = renderReviewContent(r);
+            const dateStr = formatArchiveDate(r.created_at);
             return `
             <div class="bg-white dark:bg-coffee-panel p-6 rounded-3xl border border-slate-200 dark:border-coffee-border shadow-xl hover:scale-[1.02] transition-transform cursor-pointer" onclick="openStoreByID(${r.store_id})">
-                <div class="flex justify-between items-start mb-4">
+                <div class="flex justify-between items-start mb-1">
                     <h3 class="font-serif font-bold text-xl text-coffee-btn dark:text-coffee-accent">${escapeHtml(r.store_name)}</h3>
                     <span class="text-[10px] uppercase tracking-widest text-slate-400 dark:text-coffee-muted">${escapeHtml(r.bean_name)}</span>
                 </div>
+                ${dateStr ? `<p class="text-[11px] text-slate-400 dark:text-coffee-muted mb-3 font-mono">${dateStr}</p>` : '<div class="mb-3"></div>'}
                 ${renderTagChips(r.tags)}
                 ${feedContent}
                 ${r.front_card_path ? `<div class="review-thumb-feed-outer max-md:-mx-2 max-md:px-2 max-md:overflow-x-auto max-md:custom-scrollbar"><div class="review-thumb-feed-slot mb-0 rounded-2xl border border-slate-100 dark:border-coffee-border"><img src="${escapeHtml(r.front_card_path)}" alt="" data-lightbox-src="${escapeHtml(r.front_card_path)}" class="review-lightbox-thumb cursor-pointer hover:opacity-90 transition-opacity"></div></div>` : ''}
@@ -730,7 +743,7 @@ window.doSearch = async function(query) {
 window.toggleWishlistFromSearch = async function(item, event) {
     if (event) event.stopPropagation();
     if (typeof USER_ROLE !== 'undefined' && USER_ROLE !== 'admin') {
-        alert("관리자 로그인이 필요합니다.");
+        window.toastError("관리자 로그인이 필요합니다.");
         return;
     }
     const existing = window.storeMapState.storesCache.find(s => s.address === item.roadAddress || s.name === item.title);
@@ -749,15 +762,15 @@ window.toggleWishlistFromSearch = async function(item, event) {
         await window.loadStores();
         const query = document.getElementById('searchInput').value;
         if (query) window.doSearch(query);
-        alert("위시리스트에 추가되었습니다.");
+        window.toastSuccess("위시리스트에 추가되었습니다.");
     } catch (e) {
-        alert("저장 실패: " + e.message);
+        window.toastError("저장 실패: " + e.message);
     }
 };
 
 window.toggleWishlist = async function(sid) {
     if (typeof USER_ROLE !== 'undefined' && USER_ROLE !== 'admin') {
-        alert('관리자 로그인이 필요합니다.');
+        window.toastError('관리자 로그인이 필요합니다.');
         return;
     }
     if (sid === 'temp') {
@@ -777,13 +790,13 @@ window.toggleWishlist = async function(sid) {
             const query = document.getElementById('searchInput').value;
             if (query) window.doSearch(query);
         } catch (e) {
-            alert('저장 실패: ' + e.message);
+            window.toastError('저장 실패: ' + e.message);
         }
         return;
     }
     const rawId = Number(sid);
     if (!Number.isFinite(rawId) || rawId < 1) {
-        alert('매장 정보가 올바르지 않습니다. 목록에서 매장을 다시 열어 주세요.');
+        window.toastError('매장 정보가 올바르지 않습니다. 목록에서 매장을 다시 열어 주세요.');
         return;
     }
     const wishBtn = document.getElementById('detailWishlistBtn');
@@ -799,7 +812,7 @@ window.toggleWishlist = async function(sid) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            alert(data.message || '요청 실패');
+            window.toastError(data.message || '요청 실패');
             return;
         }
         if ((toggleWishEpochById.get(rawId) || 0) !== epoch) return;
@@ -843,6 +856,7 @@ function updateDetailWishlistUI() {
     const store = window.storeMapState.currentStore;
     if (!icon || !store) return;
     icon.setAttribute('fill', store.is_wishlist ? 'currentColor' : 'none');
+    icon.parentElement?.setAttribute('data-tip', store.is_wishlist ? '위시리스트에서 빼기' : '위시리스트에 추가');
     if (store.is_wishlist) icon.parentElement.classList.add('text-pink-500');
     else icon.parentElement.classList.remove('text-pink-500');
 }
@@ -856,9 +870,9 @@ window.selectSearchResult = function(item) {
 };
 
 window.submitReview = async function(sid) {
-    if (!window.TastingForm) { alert('폼을 불러오지 못했습니다.'); return; }
+    if (!window.TastingForm) { window.toastError('폼을 불러오지 못했습니다.'); return; }
     const { bean_name, content, tags } = window.TastingForm.getData();
-    if (!bean_name.trim()) { alert('원두 이름을 입력해주세요.'); return; }
+    if (!bean_name.trim()) { window.toastError('원두 이름을 입력해주세요.'); return; }
     const fd = new FormData();
     fd.append('store_id', sid);
     fd.append('bean_name', bean_name);
@@ -869,14 +883,25 @@ window.submitReview = async function(sid) {
     if (front && front.files[0]) fd.append('front_image', front.files[0]);
     if (back && back.files[0]) fd.append('back_image', back.files[0]);
 
-    await window.fetchJson('/api/reviews', { method: 'POST', body: fd });
-    await window.loadStores();
-    document.getElementById('reviewForm').reset();
-    window.TastingForm.reset();
-    if (document.getElementById('frontPreview')) document.getElementById('frontPreview').classList.add('hidden');
-    if (document.getElementById('backPreview')) document.getElementById('backPreview').classList.add('hidden');
-    const store = window.storeMapState.storesCache.find((s) => Number(s.id) === Number(sid));
-    if (store) window.openStoreDetail(store);
+    const submitBtn = document.querySelector('#reviewForm button[type="submit"]');
+    const submitBtnLabel = submitBtn?.textContent;
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.classList.add('opacity-60', 'cursor-not-allowed'); submitBtn.textContent = '저장 중...'; }
+
+    try {
+        await window.fetchJson('/api/reviews', { method: 'POST', body: fd });
+        await window.loadStores();
+        document.getElementById('reviewForm').reset();
+        window.TastingForm.reset();
+        if (document.getElementById('frontPreview')) document.getElementById('frontPreview').classList.add('hidden');
+        if (document.getElementById('backPreview')) document.getElementById('backPreview').classList.add('hidden');
+        const store = window.storeMapState.storesCache.find((s) => Number(s.id) === Number(sid));
+        if (store) await window.openStoreDetail(store);
+        window.toastSuccess('테이스팅 노트가 저장되었습니다');
+    } catch (e) {
+        window.toastError('저장 실패: ' + e.message);
+    } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove('opacity-60', 'cursor-not-allowed'); submitBtn.textContent = submitBtnLabel; }
+    }
 };
 
 window.showNewStoreModal = function() {

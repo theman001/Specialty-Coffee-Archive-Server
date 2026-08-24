@@ -70,7 +70,7 @@ function renderCategoryContext() {
         });
         breadcrumb.innerHTML = crumbs.join(' ');
     }
-    if (title) title.textContent = current ? current.name : '카테고리';
+    if (title) title.textContent = current ? current.name : '전체';
     if (postListTitle) postListTitle.textContent = current ? `${current.name} 게시글` : '전체 게시글';
 
     if (subList) {
@@ -82,6 +82,14 @@ function renderCategoryContext() {
 
     if (!adminEditor || !isAdmin()) return;
     adminEditor.classList.remove('hidden');
+
+    // The "rename/delete current category" row only makes sense once an actual
+    // category is selected — at the root there is no "current category" to rename.
+    const editorTitle = document.getElementById('wiki-admin-category-editor-title');
+    const renameRow = document.getElementById('wiki-rename-current-category-row');
+    if (editorTitle) editorTitle.textContent = current ? '현재 카테고리 관리' : '카테고리 추가';
+    if (renameRow) renameRow.classList.toggle('hidden', !current);
+
     const curName = document.getElementById('currentWikiCategoryName');
     const curParent = document.getElementById('currentWikiCategoryParent');
     const delBtn = document.getElementById('btnDeleteCurrentWikiCategory');
@@ -180,7 +188,7 @@ window.deleteWiki = async function(postId) {
         window.closeWikiDetail();
         window.loadWikiPosts();
     } catch (e) {
-        alert('삭제 실패: ' + e.message);
+        window.toastError('삭제 실패: ' + e.message);
     }
 };
 
@@ -196,7 +204,7 @@ window.renameWikiCategory = async function(categoryId, oldName) {
         await loadWikiCategories();
         await window.loadWikiPosts();
     } catch (e) {
-        alert('수정 실패: ' + e.message);
+        window.toastError('수정 실패: ' + e.message);
     }
 };
 
@@ -208,7 +216,7 @@ window.removeWikiCategory = async function(categoryId) {
         await loadWikiCategories();
         await window.loadWikiPosts();
     } catch (e) {
-        alert('삭제 실패: ' + e.message);
+        window.toastError('삭제 실패: ' + e.message);
     }
 };
 
@@ -253,7 +261,7 @@ window.setupWikiEvents = function() {
             await loadWikiCategories();
             renderCategoryContext();
         } catch (e) {
-            alert('카테고리 생성 실패: ' + e.message);
+            window.toastError('카테고리 생성 실패: ' + e.message);
         }
     });
     
@@ -262,11 +270,11 @@ window.setupWikiEvents = function() {
         const name = document.getElementById('currentWikiCategoryName').value.trim();
         const parentRaw = document.getElementById('currentWikiCategoryParent').value;
         if (!name) {
-            alert('카테고리 이름을 입력하세요.');
+            window.toastError('카테고리 이름을 입력하세요.');
             return;
         }
         if (String(parentRaw) === String(selectedCategoryId)) {
-            alert('현재 카테고리를 상위로 지정할 수 없습니다.');
+            window.toastError('현재 카테고리를 상위로 지정할 수 없습니다.');
             return;
         }
         try {
@@ -281,7 +289,7 @@ window.setupWikiEvents = function() {
             await loadWikiCategories();
             await window.loadWikiPosts();
         } catch (e) {
-            alert('카테고리 수정 실패: ' + e.message);
+            window.toastError('카테고리 수정 실패: ' + e.message);
         }
     });
 
@@ -294,7 +302,7 @@ window.setupWikiEvents = function() {
             await loadWikiCategories();
             await window.loadWikiPosts();
         } catch (e) {
-            alert('카테고리 삭제 실패: ' + e.message);
+            window.toastError('카테고리 삭제 실패: ' + e.message);
         }
     });
 
@@ -326,7 +334,7 @@ window.setupWikiEvents = function() {
             document.getElementById('btnCloseWikiWrite').click();
             window.loadWikiPosts();
         } catch (e2) {
-            alert("위키 저장 실패: " + e2.message);
+            window.toastError("위키 저장 실패: " + e2.message);
         }
     };
 

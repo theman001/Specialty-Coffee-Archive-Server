@@ -64,7 +64,7 @@
         <div class="flex flex-row md:flex-col flex-1 w-full min-h-0 items-center md:items-stretch justify-between md:justify-start gap-0 px-1 md:px-0">
             <!-- Primary menu (mobile: left cluster, desktop: top) -->
             <div class="flex flex-row md:flex-col flex-1 items-center justify-evenly md:justify-start md:gap-2 md:pt-2 min-w-0">
-                <button onclick="switchView('map')" id="nav-map" class="nav-btn active relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0" title="Map & Wish">
+                <button onclick="switchView('map')" id="nav-map" class="nav-btn active relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0 tooltip tooltip-right" data-tip="지도 & 위시리스트">
                     <!-- Desktop: keep icon position fixed to collapsed sidebar width (w-20) -->
                     <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
                         <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
@@ -73,21 +73,21 @@
                     <svg class="md:hidden w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
                     <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">Map & Wish</span>
                 </button>
-                <button onclick="switchView('feed')" id="nav-feed" class="nav-btn relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0" title="Archive Feed">
+                <button onclick="switchView('feed')" id="nav-feed" class="nav-btn relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0 tooltip tooltip-right" data-tip="아카이브 피드">
                     <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
                         <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                     </span>
                     <svg class="md:hidden w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                     <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">Archive Feed</span>
                 </button>
-                <button onclick="switchView('homecafe')" id="nav-homecafe" class="nav-btn relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0" title="Home Cafe">
+                <button onclick="switchView('homecafe')" id="nav-homecafe" class="nav-btn relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0 tooltip tooltip-right" data-tip="홈카페">
                     <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
                         <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                     </span>
                     <svg class="md:hidden w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                     <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">Home Cafe</span>
                 </button>
-                <button onclick="switchView('wiki')" id="nav-wiki" class="nav-btn relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0" title="Coffee Wiki">
+                <button onclick="switchView('wiki')" id="nav-wiki" class="nav-btn relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 rounded-xl transition-all group/btn shrink-0 tooltip tooltip-right" data-tip="커피 위키">
                     <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
                         <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                     </span>
@@ -98,7 +98,7 @@
 
             <!-- Utilities: mobile right-aligned, desktop pinned to bottom -->
             <div class="flex flex-row md:flex-col items-center justify-end md:justify-start gap-0.5 md:gap-2 shrink-0 md:w-full md:mt-auto md:pt-3 md:pb-2 md:border-t border-slate-200 dark:border-coffee-border pr-1 md:pr-0">
-                <button id="themeToggleBtn" class="relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted transition-colors shrink-0" title="Toggle Light/Dark Mode">
+                <button id="themeToggleBtn" class="relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted transition-colors shrink-0 tooltip tooltip-right" data-tip="라이트/다크 모드 전환">
                     <!-- 단일 아이콘 세트(중복 방지): 모바일은 in-flow, 데스크톱은 w-20 슬롯에 고정 -->
                     <span class="flex items-center justify-center md:absolute md:inset-y-0 md:left-0 md:w-20">
                         <svg id="themeIconSun" class="w-6 h-6 flex-shrink-0 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
@@ -107,7 +107,7 @@
                     <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">테마 변경</span>
                 </button>
                 {% if user_role != 'admin' %}
-                <button onclick="attemptWhitelistLogin()" id="nav-login" class="relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors shrink-0" title="Login">
+                <button onclick="attemptWhitelistLogin()" id="nav-login" class="relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors shrink-0 tooltip tooltip-right" data-tip="관리자 로그인">
                     <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
                         <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
                     </span>
@@ -115,7 +115,7 @@
                     <span class="hidden lg:block absolute left-20 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm pointer-events-none">관리자 로그인</span>
                 </button>
                 {% else %}
-                <button id="nav-settings" class="relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors shrink-0" title="Admin Settings">
+                <button id="nav-settings" class="relative flex items-center justify-center p-2.5 md:py-4 md:my-1 mx-0.5 md:mx-0 w-11 h-11 md:w-full md:h-14 hover:bg-slate-200 dark:hover:bg-coffee-card rounded-xl text-slate-500 dark:text-coffee-muted hover:text-coffee-btn dark:hover:text-coffee-accent transition-colors shrink-0 tooltip tooltip-right" data-tip="관리자 설정">
                     <span class="hidden md:flex absolute inset-y-0 left-0 w-20 items-center justify-center">
                         <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     </span>
@@ -281,8 +281,8 @@
                 </div>
 
                 <div id="wiki-admin-category-editor" class="bg-white dark:bg-coffee-panel border border-slate-200 dark:border-coffee-border rounded-2xl p-4 hidden">
-                    <h3 class="text-sm font-bold text-slate-700 dark:text-coffee-accent mb-3">현재 카테고리 관리</h3>
-                    <div class="flex flex-wrap gap-2 items-center">
+                    <h3 id="wiki-admin-category-editor-title" class="text-sm font-bold text-slate-700 dark:text-coffee-accent mb-3">현재 카테고리 관리</h3>
+                    <div id="wiki-rename-current-category-row" class="flex flex-wrap gap-2 items-center">
                         <input id="currentWikiCategoryName" type="text" placeholder="카테고리명" class="px-3 py-2 rounded-lg bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
                         <select id="currentWikiCategoryParent" class="px-3 py-2 rounded-lg bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm">
                             <option value="">상위 없음</option>
@@ -608,6 +608,7 @@
     <!-- Scripts -->
     <script>const USER_ROLE = "{{ user_role }}";</script>
     <script src="/static/js/http.js?v=8"></script>
+    <script src="/static/js/toast.js?v=1"></script>
     <script src="/static/js/map-core.js?v=10"></script>
     <script src="/static/js/store-map.js?v=18"></script>
     <script src="/static/js/tasting-form.js?v=2"></script>

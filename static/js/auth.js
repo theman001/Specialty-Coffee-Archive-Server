@@ -13,8 +13,8 @@ window.requireAdminAccess = function(callback) {
 window.attemptWhitelistLogin = async function() {
     try {
         await window.fetchJson('/api/auth/login/whitelist', { method: 'POST' });
-        alert("자동 로그인 성공!");
-        location.reload();
+        window.toastSuccess("자동 로그인 성공!");
+        setTimeout(() => location.reload(), 600);
     } catch (_) {
         const modal = document.getElementById('authModal');
         if (modal) {
@@ -29,11 +29,11 @@ window.registerThisDeviceID = async function() {
     const nick = document.getElementById('deviceNickname').value || "Unnamed Device";
     try {
         await window.postJson('/api/auth/device/register', { device_id: did, description: nick });
-        alert("기기 화이트리스트 등록 완료!");
+        window.toastSuccess("기기 화이트리스트 등록 완료!");
         document.getElementById('deviceNickname').value = '';
         window.loadDeviceList();
     } catch (_) {
-        alert("등록 실패 (Admin 권한 필요)");
+        window.toastError("등록 실패 (Admin 권한 필요)");
     }
 };
 
@@ -80,11 +80,11 @@ window.deleteDevice = async function(deviceId) {
 
     try {
         await window.fetchJson(`/api/auth/device/${deviceId}`, { method: 'DELETE' });
-        alert('기기 기록이 성공적으로 삭제되었습니다.');
-        if (isMe) location.reload();
+        window.toastSuccess('기기 기록이 성공적으로 삭제되었습니다.');
+        if (isMe) setTimeout(() => location.reload(), 600);
         else await window.loadDeviceList();
     } catch (e) {
-        alert('삭제 실패: ' + e.message);
+        window.toastError('삭제 실패: ' + e.message);
     }
 };
 
@@ -97,8 +97,8 @@ window.handleLogout = async function() {
     try {
         await window.fetchJson('/api/auth/logout', { method: 'POST' });
         clearLocalAdminCookie();
-        window.alert("게스트 모드로 전환되었습니다.");
-        window.location.reload();
+        window.toastSuccess("게스트 모드로 전환되었습니다.");
+        setTimeout(() => window.location.reload(), 600);
     } catch (_) {
         clearLocalAdminCookie();
         window.location.reload();
@@ -142,9 +142,9 @@ window.setupAuthAndSettings = function() {
             const code = document.getElementById('otpVerifyCode').value;
             try {
                 await window.postJson('/api/auth/otp/verify', { secret: tempOTPSecret, code });
-                alert("OTP 설정이 완료되었습니다!");
+                window.toastSuccess("OTP 설정이 완료되었습니다!");
             } catch (_) {
-                alert("코드가 일치하지 않습니다.");
+                window.toastError("코드가 일치하지 않습니다.");
             }
         };
     }
@@ -167,9 +167,10 @@ window.setupAuthAndSettings = function() {
             const code = document.getElementById('loginOTPCode').value;
             try {
                 await window.postJson('/api/auth/login/otp', { code });
-                location.reload();
+                window.toastSuccess("관리자 로그인 성공!");
+                setTimeout(() => location.reload(), 600);
             } catch (_) {
-                alert("잘못된 코드입니다.");
+                window.toastError("잘못된 코드입니다.");
             }
         };
     }

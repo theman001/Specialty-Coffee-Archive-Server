@@ -419,7 +419,7 @@ window.openRecipeEditModal = async function (id) {
             ]);
             recipe = fetched;
         } catch (e) {
-            alert('레시피 로드 실패: ' + e.message);
+            window.toastError('레시피 로드 실패: ' + e.message);
             return;
         }
         _initEquipmentSelects();
@@ -654,14 +654,14 @@ async function _onRecipeFormSubmit(e) {
 
     if (!recipeNameInput?.value?.trim()) {
         recipeNameInput?.focus();
-        alert('레시피 이름을 입력해주세요.');
+        window.toastError('레시피 이름을 입력해주세요.');
         return;
     }
 
     const dripper = _collectDripperName();
     if (!dripper) {
         document.getElementById('hc-dripper-select')?.focus();
-        alert('드리퍼는 필수 입력 항목입니다.');
+        window.toastError('드리퍼는 필수 입력 항목입니다.');
         return;
     }
 
@@ -713,7 +713,7 @@ async function _onRecipeFormSubmit(e) {
         hideModal('homecafeWriteModal');
         await window.loadRecipes();
     } catch (err) {
-        alert('저장 실패: ' + err.message);
+        window.toastError('저장 실패: ' + err.message);
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = _editingRecipeId ? '새 버전 저장' : '저장하기'; }
     }
@@ -727,7 +727,7 @@ window.deleteRecipe = function (id) {
             await window.fetchJson(`/api/homecafe/recipes/${id}`, { method: 'DELETE' });
             await window.loadRecipes();
         } catch (e) {
-            alert('삭제 실패: ' + e.message);
+            window.toastError('삭제 실패: ' + e.message);
         }
     });
 };
@@ -740,7 +740,7 @@ window.deleteVersion = function (recipeId, verId) {
             await window.fetchJson(`/api/homecafe/recipes/${recipeId}/versions/${verId}`, { method: 'DELETE' });
             await _refreshVersionHistory(recipeId);
         } catch (e) {
-            alert(e.message);
+            window.toastError(e.message);
         }
     });
 };
@@ -761,7 +761,7 @@ window.openBrewSheet = async function (id) {
         _renderBrewSheet();
         showModal('homecafeBrewSheet');
     } catch (e) {
-        alert('레시피 로드 실패: ' + e.message);
+        window.toastError('레시피 로드 실패: ' + e.message);
     }
 };
 
@@ -843,16 +843,17 @@ function _renderBrewSheet() {
             const curRating = cv ? (cv.result_rating || 0) : 0;
             resultHtml = `
             <div class="mt-6 pt-4 border-t border-slate-200 dark:border-coffee-border">
-                <h4 class="text-sm font-bold text-slate-700 dark:text-coffee-accent mb-3">이번 브루잉 결과</h4>
+                <h4 class="text-sm font-bold text-slate-700 dark:text-coffee-accent mb-1">이 레시피 자체에 대한 평가</h4>
+                <p class="text-[11px] text-slate-400 dark:text-coffee-muted mb-3">특정 원두가 아닌, 이 추출법 자체의 인상을 남겨보세요. 원두별 기록은 아래 '추출 일지'에 남길 수 있어요.</p>
                 <div id="hc-brew-stars" class="flex gap-1 mb-3">${hcStars(curRating, true, 'hc-brew')}</div>
                 <input type="hidden" id="hc-brew-result-rating" value="${curRating || ''}">
-                <textarea id="hc-brew-result-memo" rows="3" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm resize-none outline-none focus:ring-2 focus:ring-coffee-btn" placeholder="결과 메모를 남겨보세요...">${hcEsc(cv && cv.result_memo ? cv.result_memo : '')}</textarea>
+                <textarea id="hc-brew-result-memo" rows="3" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-coffee-card border border-slate-200 dark:border-coffee-border text-sm resize-none outline-none focus:ring-2 focus:ring-coffee-btn" placeholder="이 레시피에 대한 메모를 남겨보세요...">${hcEsc(cv && cv.result_memo ? cv.result_memo : '')}</textarea>
                 <button onclick="window._saveBrewResult(${recipe.id})" class="mt-2 w-full py-2 rounded-xl bg-coffee-btn text-white text-sm font-medium hover:bg-coffee-btnHover transition-colors">저장</button>
             </div>`;
         } else if (cv && cv.result_memo) {
             resultHtml = `
             <div class="mt-6 pt-4 border-t border-slate-200 dark:border-coffee-border">
-                <h4 class="text-sm font-bold text-slate-700 dark:text-coffee-accent mb-2">브루잉 결과</h4>
+                <h4 class="text-sm font-bold text-slate-700 dark:text-coffee-accent mb-2">이 레시피 자체에 대한 평가</h4>
                 ${cv.result_rating ? `<div class="mb-2">${hcStars(cv.result_rating, false, '')}</div>` : ''}
                 <p class="text-sm text-slate-600 dark:text-coffee-text whitespace-pre-wrap">${hcEsc(cv.result_memo)}</p>
             </div>`;
@@ -860,7 +861,7 @@ function _renderBrewSheet() {
     } else if (cv && cv.result_memo) {
         resultHtml = `
         <div class="mt-6 pt-4 border-t border-slate-200 dark:border-coffee-border">
-            <h4 class="text-sm font-bold text-slate-700 dark:text-coffee-accent mb-2">브루잉 결과 (v${cv.version_number})</h4>
+            <h4 class="text-sm font-bold text-slate-700 dark:text-coffee-accent mb-2">이 레시피 자체에 대한 평가 (v${cv.version_number})</h4>
             ${cv.result_rating ? `<div class="mb-2">${hcStars(cv.result_rating, false, '')}</div>` : ''}
             <p class="text-sm text-slate-600 dark:text-coffee-text whitespace-pre-wrap">${hcEsc(cv.result_memo)}</p>
         </div>`;
@@ -1087,7 +1088,7 @@ window._toggleBrewLogInput = function () {
 window._saveBrewLog = async function (recipeId) {
     window.requireAdminAccess(async () => {
         const cv = _getDisplayVersion();
-        if (!cv?.id) { alert('버전 정보를 찾을 수 없습니다.'); return; }
+        if (!cv?.id) { window.toastError('버전 정보를 찾을 수 없습니다.'); return; }
 
         const steps = (cv.pour_steps || []).map(s => ({
             step_order: s.step_order,
@@ -1104,7 +1105,7 @@ window._saveBrewLog = async function (recipeId) {
         const reviewId = reviewSelVal ? parseInt(reviewSelVal) : null;
 
         const hasData = tasteNote || rating || beanName || roastLevel || reviewId || steps.some(s => s.actual_water_g != null || s.actual_duration_s != null);
-        if (!hasData) { alert('기록할 내용을 입력해주세요.'); return; }
+        if (!hasData) { window.toastError('기록할 내용을 입력해주세요.'); return; }
 
         const saveBtn = document.querySelector(`#hc-brew-log-input button[onclick*="_saveBrewLog"]`);
         if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
@@ -1123,7 +1124,7 @@ window._saveBrewLog = async function (recipeId) {
             _brewLogExpanded = false;
             _renderBrewSheet();
         } catch (e) {
-            alert('저장 실패: ' + e.message);
+            window.toastError('저장 실패: ' + e.message);
             if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '추출 기록 저장'; }
         }
     });
@@ -1137,7 +1138,7 @@ window._deleteBrewLog = function (recipeId, logId) {
             _brewLogs = _brewLogs.filter(l => l.id !== logId);
             _renderBrewSheet();
         } catch (e) {
-            alert('삭제 실패: ' + e.message);
+            window.toastError('삭제 실패: ' + e.message);
         }
     });
 };
@@ -1159,7 +1160,7 @@ window._saveLogReviewLink = async function (recipeId, logId) {
             if (idx !== -1) _brewLogs[idx] = updated;
             _renderBrewSheet();
         } catch (e) {
-            alert('저장 실패: ' + e.message);
+            window.toastError('저장 실패: ' + e.message);
         }
     });
 };
@@ -1174,7 +1175,7 @@ window._openReviewFromBrewLog = async function (reviewId) {
         }
         const store = window.storeMapState?.storesCache?.find(s => Number(s.id) === Number(review.store_id));
         if (!store) {
-            alert(`연결된 리뷰: ${review.store_name || ''} · ${review.bean_name}`);
+            window.toastInfo(`연결된 리뷰: ${review.store_name || ''} · ${review.bean_name}`);
             return;
         }
         hideModal('homecafeBrewSheet');
@@ -1182,7 +1183,7 @@ window._openReviewFromBrewLog = async function (reviewId) {
         _brewViewVersionId = null;
         window.openStoreDetailByList(store);
     } catch (e) {
-        alert('리뷰 로드 실패: ' + e.message);
+        window.toastError('리뷰 로드 실패: ' + e.message);
     }
 };
 
@@ -1232,7 +1233,7 @@ window._saveBrewResult = async function (recipeId) {
             }
             await window.loadRecipes();
         } catch (e) {
-            alert('저장 실패: ' + e.message);
+            window.toastError('저장 실패: ' + e.message);
         }
     });
 };
@@ -1247,7 +1248,7 @@ async function _refreshVersionHistory(recipeId) {
         _versionHistory = await window.fetchJson(`/api/homecafe/recipes/${recipeId}/versions`);
         _renderVersionHistoryPanel(recipeId);
     } catch (e) {
-        alert('버전 히스토리 로드 실패: ' + e.message);
+        window.toastError('버전 히스토리 로드 실패: ' + e.message);
     }
 }
 
@@ -1304,7 +1305,7 @@ window._viewVersion = async function (recipeId, versionId) {
         _brewViewVersionId = versionId;
         _renderBrewSheet();
     } catch (e) {
-        alert('버전 로드 실패: ' + e.message);
+        window.toastError('버전 로드 실패: ' + e.message);
     }
 };
 
@@ -1346,7 +1347,7 @@ window._restoreVersion = async function (recipeId, versionId) {
             await window.loadRecipes();
             await _refreshVersionHistory(recipeId);
         } catch (e) {
-            alert('복원 실패: ' + e.message);
+            window.toastError('복원 실패: ' + e.message);
         }
     });
 };

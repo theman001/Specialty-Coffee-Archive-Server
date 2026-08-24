@@ -220,6 +220,8 @@ def _ensure_legacy_columns():
             cols = {row[1] for row in conn.execute(text("PRAGMA table_info('review')")).fetchall()}
             if "tags" not in cols:
                 conn.execute(text("ALTER TABLE review ADD COLUMN tags TEXT"))
+            if "created_at" not in cols:
+                conn.execute(text("ALTER TABLE review ADD COLUMN created_at TEXT"))
             wiki_cols = {row[1] for row in conn.execute(text("PRAGMA table_info('wikipost')")).fetchall()}
             if "category_id" not in wiki_cols:
                 conn.execute(text("ALTER TABLE wikipost ADD COLUMN category_id INTEGER"))
@@ -578,7 +580,8 @@ def get_feed(session: Session = Depends(get_session)):
             "content": review.content,
             "tags": _tags_to_list(getattr(review, "tags", "")),
             "front_card_path": review.front_card_path,
-            "back_card_path": review.back_card_path
+            "back_card_path": review.back_card_path,
+            "created_at": review.created_at.isoformat() if review.created_at else None,
         }
         for review, store_name, store_id in rows
     ]
@@ -709,6 +712,7 @@ def get_store_reviews(store_id: int, session: Session = Depends(get_session)):
             "tags": _tags_to_list(getattr(r, "tags", "")),
             "front_card_path": r.front_card_path,
             "back_card_path": r.back_card_path,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
             "linked_recipes": _get_linked_recipes_for_review(r.id, session),
         }
         for r in reviews
