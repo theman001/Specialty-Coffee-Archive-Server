@@ -195,14 +195,20 @@ window.loadStores = async function() {
     }
 };
 
-const BREWED_PIN_COLOR_DEFAULT = '#8F8B66';
+const PIN_COLOR_DEFAULTS = {
+    brewed: '#8F8B66',
+    record_wish: '#e84393',
+    record_only: '#f1c40f',
+    wish_only: '#7f8fa6',
+};
 
-window.getBrewedPinColor = function() {
-    return localStorage.getItem('brewedPinColor') || BREWED_PIN_COLOR_DEFAULT;
+window.getPinColor = function(key) {
+    return localStorage.getItem('pinColor_' + key) || PIN_COLOR_DEFAULTS[key] || '#7f8fa6';
 };
 
 function getStoreColor(store) {
-    return store.has_brewed_review ? window.getBrewedPinColor() : store.color;
+    if (store.has_brewed_review) return window.getPinColor('brewed');
+    return window.getPinColor(store.type) || store.color;
 }
 
 function getIconHtml(color) {

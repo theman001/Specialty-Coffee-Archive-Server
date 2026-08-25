@@ -368,13 +368,31 @@
                     </div>
                 </section>
 
-                <!-- 4. Brewed Pin Color -->
+                <!-- 4. Pin Colors -->
                 <section class="pt-8 border-t border-coffee-border">
-                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> 추출 원두 매장 핀 색상</h3>
-                    <p class="text-sm text-coffee-muted mb-4">홈카페 추출일지에 원두로 연결된 매장의 지도 핀 색상을 지정합니다.</p>
-                    <div class="bg-coffee-card p-6 rounded-2xl border border-coffee-border flex items-center gap-4">
-                        <input id="brewedPinColor" type="color" value="#8F8B66" class="w-14 h-14 rounded-lg border border-coffee-border bg-transparent cursor-pointer p-0">
-                        <span id="brewedPinColorDisplay" class="font-mono text-sm text-coffee-muted uppercase">#8F8B66</span>
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> 지도 핀 색상</h3>
+                    <p class="text-sm text-coffee-muted mb-4">매장 상태별 지도 핀 색상을 지정합니다. 추출일지 연결 핀은 다른 상태보다 우선 적용됩니다.</p>
+                    <div class="bg-coffee-card p-6 rounded-2xl border border-coffee-border space-y-4">
+                        <div class="flex items-center gap-4">
+                            <input id="pinColor_brewed" type="color" value="#8F8B66" class="w-10 h-10 rounded-lg border border-coffee-border bg-transparent cursor-pointer p-0 shrink-0">
+                            <div class="flex-1 min-w-0"><p class="text-sm font-medium">추출일지 원두 연결</p><p class="text-xs text-coffee-muted">홈카페 추출일지에 리뷰가 연결된 매장</p></div>
+                            <span id="pinColor_brewed_display" class="font-mono text-xs text-coffee-muted uppercase shrink-0">#8F8B66</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <input id="pinColor_record_wish" type="color" value="#e84393" class="w-10 h-10 rounded-lg border border-coffee-border bg-transparent cursor-pointer p-0 shrink-0">
+                            <div class="flex-1 min-w-0"><p class="text-sm font-medium">기록 + 위시리스트</p><p class="text-xs text-coffee-muted">리뷰가 있고 위시리스트에도 등록된 매장</p></div>
+                            <span id="pinColor_record_wish_display" class="font-mono text-xs text-coffee-muted uppercase shrink-0">#E84393</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <input id="pinColor_record_only" type="color" value="#f1c40f" class="w-10 h-10 rounded-lg border border-coffee-border bg-transparent cursor-pointer p-0 shrink-0">
+                            <div class="flex-1 min-w-0"><p class="text-sm font-medium">기록만 있음</p><p class="text-xs text-coffee-muted">리뷰는 있지만 위시리스트에는 없는 매장</p></div>
+                            <span id="pinColor_record_only_display" class="font-mono text-xs text-coffee-muted uppercase shrink-0">#F1C40F</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <input id="pinColor_wish_only" type="color" value="#7f8fa6" class="w-10 h-10 rounded-lg border border-coffee-border bg-transparent cursor-pointer p-0 shrink-0">
+                            <div class="flex-1 min-w-0"><p class="text-sm font-medium">위시리스트만 있음</p><p class="text-xs text-coffee-muted">아직 리뷰 없이 위시리스트에만 등록된 매장</p></div>
+                            <span id="pinColor_wish_only_display" class="font-mono text-xs text-coffee-muted uppercase shrink-0">#7F8FA6</span>
+                        </div>
                     </div>
                 </section>
 
@@ -631,11 +649,11 @@
     <script src="/static/js/http.js?v=8"></script>
     <script src="/static/js/toast.js?v=1"></script>
     <script src="/static/js/map-core.js?v=10"></script>
-    <script src="/static/js/store-map.js?v=21"></script>
+    <script src="/static/js/store-map.js?v=22"></script>
     <script src="/static/js/tasting-form.js?v=2"></script>
     <script src="/static/js/wiki.js?v=2"></script>
     <script src="/static/js/homecafe.js?v=3"></script>
-    <script src="/static/js/auth.js?v=5"></script>
+    <script src="/static/js/auth.js?v=6"></script>
     <script src="/static/js/app.js?v=51"></script>
 </body>
 </html>

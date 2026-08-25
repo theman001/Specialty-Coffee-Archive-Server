@@ -135,18 +135,19 @@ window.setupAuthAndSettings = function() {
         });
     }
 
-    const pinColorInput = document.getElementById('brewedPinColor');
-    const pinColorDisplay = document.getElementById('brewedPinColorDisplay');
-    if (pinColorInput && pinColorDisplay) {
-        pinColorInput.value = window.getBrewedPinColor();
-        pinColorDisplay.textContent = pinColorInput.value.toUpperCase();
-        pinColorInput.addEventListener('input', () => {
-            pinColorDisplay.textContent = pinColorInput.value.toUpperCase();
-            localStorage.setItem('brewedPinColor', pinColorInput.value);
+    ['brewed', 'record_wish', 'record_only', 'wish_only'].forEach((key) => {
+        const input = document.getElementById('pinColor_' + key);
+        const display = document.getElementById('pinColor_' + key + '_display');
+        if (!input || !display) return;
+        input.value = window.getPinColor(key);
+        display.textContent = input.value.toUpperCase();
+        input.addEventListener('input', () => {
+            display.textContent = input.value.toUpperCase();
+            localStorage.setItem('pinColor_' + key, input.value);
             if (typeof window.renderMarkers === 'function') window.renderMarkers();
             if (typeof window.renderStoreList === 'function') window.renderStoreList();
         });
-    }
+    });
 
     const otpSetupBtn = document.getElementById('btnShowOTPSetup');
     if (otpSetupBtn) {
