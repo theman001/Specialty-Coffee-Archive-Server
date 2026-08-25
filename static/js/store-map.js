@@ -262,13 +262,20 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+const MAP_FOCUS_DURATION_DEFAULT = 0.5;
+
+window.getMapFocusDuration = function() {
+    const stored = parseFloat(localStorage.getItem('mapFocusDuration'));
+    return Number.isFinite(stored) ? stored : MAP_FOCUS_DURATION_DEFAULT;
+};
+
 // flyTo() interpolates zoom as a continuous curve, so a pan+zoom-in (e.g. 14 -> 16)
 // crosses every intermediate integer zoom level as a real frame — Leaflet requests and
 // paints a fresh set of tiles at each one, which is what made this animation stutter.
 // setView's zoom transition is a single CSS-transform scale to the destination zoom
 // (one tile fetch at the end), so it stays smooth at this app's city-scale distances.
 function focusStoreOnMap(lat, lng) {
-    window.mapRef.setView([lat, lng], 16, { animate: true, duration: 0.5 });
+    window.mapRef.setView([lat, lng], 16, { animate: true, duration: window.getMapFocusDuration() });
 }
 
 function formatArchiveDate(iso) {

@@ -124,6 +124,17 @@ window.setupAuthAndSettings = function() {
         };
     }
 
+    const durationSlider = document.getElementById('mapFocusDuration');
+    const durationDisplay = document.getElementById('mapFocusDurationDisplay');
+    if (durationSlider && durationDisplay) {
+        durationSlider.value = window.getMapFocusDuration();
+        durationDisplay.textContent = parseFloat(durationSlider.value).toFixed(1);
+        durationSlider.addEventListener('input', () => {
+            durationDisplay.textContent = parseFloat(durationSlider.value).toFixed(1);
+            localStorage.setItem('mapFocusDuration', durationSlider.value);
+        });
+    }
+
     const otpSetupBtn = document.getElementById('btnShowOTPSetup');
     if (otpSetupBtn) {
         otpSetupBtn.onclick = async () => {

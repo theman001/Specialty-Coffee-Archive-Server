@@ -357,7 +357,18 @@
                     </div>
                 </section>
 
-                <!-- 3. Read-only Switch (Logout) -->
+                <!-- 3. Map Focus Animation Speed -->
+                <section class="pt-8 border-t border-coffee-border">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-coffee-accent"><svg class="w-5 h-5 text-coffee-btn" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg> 지도 핀 포커싱 속도</h3>
+                    <p class="text-sm text-coffee-muted mb-4">매장 클릭 시 지도가 이동하는 애니메이션 속도를 조절합니다. (짧을수록 빠름)</p>
+                    <div class="bg-coffee-card p-6 rounded-2xl border border-coffee-border">
+                        <label class="block text-xs text-coffee-muted mb-1">이동 시간 <span id="mapFocusDurationDisplay" class="font-mono font-bold text-coffee-btn">0.5</span>초</label>
+                        <input id="mapFocusDuration" type="range" min="0.2" max="1.5" step="0.1" value="0.5" class="w-full accent-coffee-btn">
+                        <div class="flex justify-between text-[10px] text-coffee-muted mt-1"><span>빠름</span><span>느림</span></div>
+                    </div>
+                </section>
+
+                <!-- 4. Read-only Switch (Logout) -->
                 <section class="pt-8 border-t border-coffee-border">
                     <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-red-400"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg> 읽기 모드로 전환</h3>
                     <p class="text-sm text-coffee-muted mb-6">현재 관리자 세션을 종료하고 누구나 볼 수 있는 게스트(읽기 전용) 모드로 돌아갑니다.</p>
@@ -610,11 +621,11 @@
     <script src="/static/js/http.js?v=8"></script>
     <script src="/static/js/toast.js?v=1"></script>
     <script src="/static/js/map-core.js?v=10"></script>
-    <script src="/static/js/store-map.js?v=19"></script>
+    <script src="/static/js/store-map.js?v=20"></script>
     <script src="/static/js/tasting-form.js?v=2"></script>
     <script src="/static/js/wiki.js?v=2"></script>
     <script src="/static/js/homecafe.js?v=3"></script>
-    <script src="/static/js/auth.js?v=3"></script>
+    <script src="/static/js/auth.js?v=4"></script>
     <script src="/static/js/app.js?v=51"></script>
 </body>
 </html>
