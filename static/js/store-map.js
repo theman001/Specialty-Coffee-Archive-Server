@@ -195,6 +195,16 @@ window.loadStores = async function() {
     }
 };
 
+const BREWED_PIN_COLOR_DEFAULT = '#8F8B66';
+
+window.getBrewedPinColor = function() {
+    return localStorage.getItem('brewedPinColor') || BREWED_PIN_COLOR_DEFAULT;
+};
+
+function getStoreColor(store) {
+    return store.has_brewed_review ? window.getBrewedPinColor() : store.color;
+}
+
 function getIconHtml(color) {
     return `<div class="custom-marker" style="background: ${color}"><div class="custom-marker-inner"></div></div>`;
 }
@@ -210,7 +220,7 @@ function renderMarkers() {
     window.storeMapState.markers = [];
     window.storeMapState.storesCache.forEach(store => {
         const icon = L.divIcon({
-            html: getIconHtml(store.color),
+            html: getIconHtml(getStoreColor(store)),
             className: '',
             iconSize: [32, 32],
             iconAnchor: [16, 32],
@@ -242,7 +252,7 @@ function renderStoreList() {
                 </h4>
                 <p class="text-xs text-slate-500 dark:text-coffee-muted mt-1 truncate">${escapeHtml(store.address)}</p>
             </div>
-            <div class="w-4 h-4 rounded-full shadow-sm flex-shrink-0 border border-black/10" style="background: ${store.color};"></div>
+            <div class="w-4 h-4 rounded-full shadow-sm flex-shrink-0 border border-black/10" style="background: ${getStoreColor(store)};"></div>
         </div>
     `).join('');
 }

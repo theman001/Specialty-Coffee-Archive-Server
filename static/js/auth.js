@@ -135,6 +135,19 @@ window.setupAuthAndSettings = function() {
         });
     }
 
+    const pinColorInput = document.getElementById('brewedPinColor');
+    const pinColorDisplay = document.getElementById('brewedPinColorDisplay');
+    if (pinColorInput && pinColorDisplay) {
+        pinColorInput.value = window.getBrewedPinColor();
+        pinColorDisplay.textContent = pinColorInput.value.toUpperCase();
+        pinColorInput.addEventListener('input', () => {
+            pinColorDisplay.textContent = pinColorInput.value.toUpperCase();
+            localStorage.setItem('brewedPinColor', pinColorInput.value);
+            if (typeof window.renderMarkers === 'function') window.renderMarkers();
+            if (typeof window.renderStoreList === 'function') window.renderStoreList();
+        });
+    }
+
     const otpSetupBtn = document.getElementById('btnShowOTPSetup');
     if (otpSetupBtn) {
         otpSetupBtn.onclick = async () => {

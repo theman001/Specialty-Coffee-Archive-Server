@@ -505,6 +505,14 @@ def serialize_stores_for_client(session: Session) -> list:
         select(Review.store_id, func.count(Review.id)).group_by(Review.store_id)
     ).all()
     review_count_map = {store_id: count for store_id, count in review_count_rows}
+    brewed_review_ids = set(session.exec(
+        select(HomeCafeBrewLog.review_id).where(HomeCafeBrewLog.review_id.is_not(None)).distinct()
+    ).all())
+    brewed_store_ids = set()
+    if brewed_review_ids:
+        brewed_store_ids = set(session.exec(
+            select(Review.store_id).where(Review.id.in_(brewed_review_ids)).distinct()
+        ).all())
     result = []
     for s in stores:
         review_count = int(review_count_map.get(s.id, 0) or 0)
@@ -535,6 +543,7 @@ def serialize_stores_for_client(session: Session) -> list:
             "type": type_status,
             "color": color,
             "reviews_count": review_count,
+            "has_brewed_review": s.id in brewed_store_ids,
         })
     return result
 
