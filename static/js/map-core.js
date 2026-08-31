@@ -110,7 +110,10 @@ window.initMap = function() {
     subwayPane.style.filter = 'none';
 
     lightTile = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 });
-    darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // CARTO 무료 래스터 타일은 API 키가 필수입니다(carto.com/basemaps/apikey, 쿼리 파라미터명 key).
+    // 키가 없으면 "API KEY REQUIRED" 워터마크 타일이 내려옵니다 — .env의 CARTO_API_KEY로 채워주세요.
+    const cartoKeyParam = CARTO_API_KEY ? `?key=${encodeURIComponent(CARTO_API_KEY)}` : '';
+    darkTile = L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png${cartoKeyParam}`, {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20,

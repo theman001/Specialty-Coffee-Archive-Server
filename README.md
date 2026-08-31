@@ -51,6 +51,8 @@ volumes:
 ```env
 NAVER_CLIENT_ID=발급받은_ID
 NAVER_CLIENT_SECRET=발급받은_Secret
+# 다크모드 지도 배경(CARTO Voyager 타일)에 필요. carto.com/basemaps/apikey 에서 이메일로 무료 발급.
+CARTO_API_KEY=발급받은_키
 # DB는 컨테이너 내부 경로(/app/data/...) 기준으로 설정하면 볼륨 매핑된 NAS 폴더에 저장됩니다.
 DATABASE_URL=sqlite:///./data/coffee_archive.db
 ```

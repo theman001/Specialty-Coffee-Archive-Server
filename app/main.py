@@ -21,6 +21,13 @@ def get_naver_client_id():
     load_dotenv(dotenv_path="/app/.env", override=True)
     return os.getenv("NAVER_CLIENT_ID", "")
 
+def get_carto_api_key():
+    load_dotenv(dotenv_path=".env", override=True)
+    val = os.getenv("CARTO_API_KEY")
+    if val: return val
+    load_dotenv(dotenv_path="/app/.env", override=True)
+    return os.getenv("CARTO_API_KEY", "")
+
 from datetime import datetime, timezone
 
 from .database import (
@@ -245,6 +252,7 @@ def read_root(request: Request, user: dict = Depends(get_current_user)):
         name="index.html",
         context={
             "naver_map_client_id": get_naver_client_id(),
+            "carto_api_key": get_carto_api_key(),
             "user_role": user["role"]
         },
         headers={
