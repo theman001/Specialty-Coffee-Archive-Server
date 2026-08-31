@@ -2,12 +2,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap');
 
 :root {
-  --map-filter: sepia(0.20) hue-rotate(-5deg) contrast(1.05) saturate(1.05) brightness(0.95);
   --transition-speed: 0.3s;
 }
 
+/* 다크모드 지도 배경: 별도 다크 타일 없이 OSM 타일에 invert 필터를 걸어 어둡게 표시 */
 html.dark {
-  --map-filter: brightness(0.8) contrast(1.2) saturate(0.8);
+  --map-filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.85);
 }
 
 body {

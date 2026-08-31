@@ -1,4 +1,4 @@
-let lightTile, darkTile;
+let lightTile;
 let subwayOverlay, stationLayer, regionLayer, metroLineLayer, metroStationLayer, metroOsmLineLayer;
 let metroGraphCache = null;
 let metroGraphLoadPromise = null;
@@ -70,16 +70,14 @@ function applyTheme(theme) {
     const map = window.mapRef;
     if (theme === 'dark') {
         document.documentElement.classList.add('dark');
-        if (map) {
-            if (lightTile && map.hasLayer(lightTile)) map.removeLayer(lightTile);
-            if (darkTile && !map.hasLayer(darkTile)) darkTile.addTo(map);
-        }
     } else {
         document.documentElement.classList.remove('dark');
-        if (map) {
-            if (darkTile && map.hasLayer(darkTile)) map.removeLayer(darkTile);
-            if (lightTile && !map.hasLayer(lightTile)) lightTile.addTo(map);
-        }
+    }
+    // 다크모드는 별도 타일(구 CartoDB Voyager, 현재 API 키 필수로 막힘) 대신
+    // lightTile 그대로 두고 basemapPane에 invert 필터만 걸어 어둡게 표시합니다.
+    if (map) {
+        const pane = map.getPane('basemapPane');
+        if (pane) pane.style.filter = theme === 'dark' ? 'var(--map-filter)' : 'none';
     }
     localStorage.setItem('theme', theme);
     if (map && typeof window.refreshMapHighlightLayers === 'function') {
@@ -95,26 +93,24 @@ window.initMap = function() {
     L.control.zoom({ position: 'topright' }).addTo(map);
     metroCanvasRenderer = L.canvas({ padding: 0.5 });
 
-    // Dark basemap: Voyager reads well (vs. dark_all). Pane z-index below default tilePane so subway overlay stays crisp.
-    map.createPane('darkBasemap');
-    const darkBasePane = map.getPane('darkBasemap');
-    darkBasePane.style.zIndex = '195';
-    darkBasePane.style.filter = 'brightness(0.9) sepia(0.14) saturate(0.9)';
+    // Basemap: OSM 타일 하나만 쓰고, 다크모드는 별도 타일 대신 CSS invert 필터로 표현합니다
+    // (구 CartoDB Voyager 무료 래스터 타일은 API 키가 필수로 바뀌어 "API KEY REQUIRED" 워터마크만
+    // 내려와 제거함 — carto.com/basemaps/apikey). Pane z-index는 기본 tilePane과 동일하게 둡니다.
+    map.createPane('basemapPane');
+    const basemapPane = map.getPane('basemapPane');
+    basemapPane.style.filter = document.documentElement.classList.contains('dark') ? 'var(--map-filter)' : 'none';
 
-    // Subway overlay(호선/역 표시)는 원본 타일 색을 유지해야 합니다.
-    // 기존 CSS에서 `.leaflet-tile-pane`에 필터가 걸려 원본 색이 뭉개질 수 있어,
-    // subwayOverlay를 별도 pane으로 분리해 필터 영향을 차단합니다.
+    // Subway overlay(호선/역 표시)는 원본 타일 색을 유지해야 하므로 별도 pane으로 분리해
+    // basemapPane의 필터 영향을 차단합니다.
     map.createPane('subwayPane');
     const subwayPane = map.getPane('subwayPane');
     subwayPane.style.zIndex = '250';
     subwayPane.style.filter = 'none';
 
-    lightTile = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 });
-    darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 20,
-        pane: 'darkBasemap',
+    lightTile = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+        pane: 'basemapPane',
     });
     subwayOverlay = L.tileLayer(
         'https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png',
@@ -122,8 +118,7 @@ window.initMap = function() {
         { attribution: '&copy; OpenRailwayMap', opacity: 1, maxZoom: 19, subdomains: 'abc', pane: 'subwayPane' }
     );
 
-    if (document.documentElement.classList.contains('dark')) darkTile.addTo(map);
-    else lightTile.addTo(map);
+    lightTile.addTo(map);
     subwayOverlay.addTo(map);
 
     window.refreshMapHighlightLayers = function () {
